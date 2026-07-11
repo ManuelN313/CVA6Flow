@@ -1,0 +1,86 @@
+  la       t0, N                    # Address of N
+    8000307e:	00003297          	auipc	t0,0x3
+    80003082:	f8228293          	addi	t0,t0,-126 # 80006000 <N>
+  ld       t1, 0(t0)                # t1 = N
+    80003086:	0002b303          	ld	t1,0(t0)
+
+  la       t2, Alpha                # Address of Alpha
+    8000308a:	00003397          	auipc	t2,0x3
+    8000308e:	f7e38393          	addi	t2,t2,-130 # 80006008 <Alpha>
+  ld       t3, 0(t2)                # t3 = Alpha (integer)
+    80003092:	0003be03          	ld	t3,0(t2)
+  fcvt.d.l f10, t3                  # f10 = (double) Alpha
+    80003096:	d22e7553          	fcvt.d.l	fa0,t3
+
+  la       s2, X                    # Base of X
+    8000309a:	00003917          	auipc	s2,0x3
+    8000309e:	f7690913          	addi	s2,s2,-138 # 80006010 <X>
+  la       s3, Y                    # Base of Y
+    800030a2:	0000b997          	auipc	s3,0xb
+    800030a6:	f6e98993          	addi	s3,s3,-146 # 8000e010 <Y>
+  la       s4, Z                    # Base of Z
+    800030aa:	00013a17          	auipc	s4,0x13
+    800030ae:	f66a0a13          	addi	s4,s4,-154 # 80016010 <Z>
+
+  mv       s5, s2                   # Offset X -> s5
+    800030b2:	8aca                	mv	s5,s2
+  mv       s6, s3                   # Offset Y -> s6
+    800030b4:	8b4e                	mv	s6,s3
+  mv       s7, s4                   # Offset Z -> s7
+    800030b6:	8bd2                	mv	s7,s4
+
+  li       t4, 0                    # Loop index i = 0
+    800030b8:	4e81                	li	t4,0
+    800030ba:	00000013          	nop
+    800030be:	0001                	nop
+
+00000000800030c0 <loop>:
+loop():
+
+  .align   4
+loop:
+  fld      f5, 0(s5)                # f5 = X[i]
+    800030c0:	000ab287          	fld	ft5,0(s5)
+  fld      f6, 0(s6)                # f6 = Y[i]
+    800030c4:	000b3307          	fld	ft6,0(s6)
+  fmul.d   f7, f10, f5              # f7 = alpha * X[i]
+    800030c8:	125573d3          	fmul.d	ft7,fa0,ft5
+  fadd.d   f8, f7, f6               # f8 = f7 + Y[i]
+    800030cc:	0263f453          	fadd.d	fs0,ft7,ft6
+  fsd      f8, 0(s7)                # Z[i] = f8
+    800030d0:	008bb027          	fsd	fs0,0(s7)
+
+  addi     s5, s5, 8
+    800030d4:	0aa1                	addi	s5,s5,8
+  addi     s6, s6, 8
+    800030d6:	0b21                	addi	s6,s6,8
+  addi     s7, s7, 8
+    800030d8:	0ba1                	addi	s7,s7,8
+
+  addi     t4, t4, 1                # i++
+    800030da:	0e85                	addi	t4,t4,1
+  blt      t4, t1, loop             # while i < N
+    800030dc:	fe6ec2e3          	blt	t4,t1,800030c0 <loop>
+
+
+
+======================================================================
+RESULTS TABLE
+======================================================================
+METRIC                    |        OFFICIAL |             NET
+======================================================================
+Cycles                    |          121542 |          121502
+Instructions              |           40996 |           40979
+I-Cache Misses            |              10 |               7
+D-Cache Misses            |            6598 |            6598
+I-Cache Accesses          |           45146 |           45112
+D-Cache Accesses          |           28794 |           28785
+Branches                  |            4096 |            4096
+Branch Miss + Unpred      |               2 |               2
+Time (us)                 |            2430 |            2430
+IPC                       |          0.3373 |          0.3373
+======================================================================
+
+Clean result (OFFICIAL):  [121542, 40996, 10, 6598, 45146, 28794, 4096, 2, 2430, 0.3373]
+Clean result (NET):       [121502, 40979, 7, 6598, 45112, 28785, 4096, 2, 2430, 0.3373]
+
