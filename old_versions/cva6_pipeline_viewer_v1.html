@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>CVA6 Pipeline Viewer v60</title>
+<style>
+:root{--bg:#14161a;--bg2:#1a1d22;--bg3:#22262d;--text:#d0cec6;--text2:#909088;--text3:#58564e;--accent:#e0a030}
+*{margin:0;padding:0;box-sizing:border-box}body{background:var(--bg);color:var(--text);font-family:'SF Mono',Menlo,Consolas,monospace;font-size:12px;overflow:hidden;height:100vh}
+#top{display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--bg2);border-bottom:1px solid var(--bg3);flex-wrap:wrap}
+.title{font-size:13px;font-weight:600;color:var(--accent)}
+button{background:var(--bg3);color:var(--text);border:1px solid #333;border-radius:4px;padding:3px 10px;cursor:pointer;font-size:11px}button:hover{background:#333}
+input[type=file]{display:none}.tlbl{color:var(--text3);font-size:10px}input[type=range]{width:100px;accent-color:var(--accent)}
+#view{display:none;flex-direction:column;height:calc(100vh - 36px)}
+#ruler{height:22px;background:var(--bg2);border-bottom:1px solid var(--bg3);margin-left:380px;overflow:hidden}
+#main{display:flex;flex:1;overflow:hidden;min-height:0}#labels{width:380px;min-width:380px;overflow:hidden;background:var(--bg);border-right:1px solid var(--bg3);min-height:0}
+#timeline{flex:1;overflow:hidden;position:relative;min-height:0}#labcanvas,#tlcanvas{display:block}
+#scroller{position:absolute;inset:0;overflow:auto;z-index:2}#scroller-inner{min-width:1px;min-height:1px}
+#tt{display:none;position:fixed;z-index:20;background:#1e2028;border:1px solid #333;border-radius:6px;padding:8px 12px;pointer-events:none;max-width:420px;font-size:11px;box-shadow:0 4px 16px rgba(0,0,0,.5)}
+#dropzone{display:flex;flex-direction:column;align-items:center;justify-content:center;height:calc(100vh - 36px);color:var(--text3);gap:12px}.big{font-size:48px}
+#leg{display:flex;background:var(--bg2);border-top:1px solid var(--bg3);min-height:28px;font-size:10px}
+#leg-left{width:380px;min-width:380px;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:4px 12px;border-right:1px solid var(--bg3)}
+#leg-right{flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:4px 12px}
+.li{display:flex;align-items:center;gap:3px;color:var(--text2)}.ld{width:10px;height:10px;border-radius:2px}
+.lsep{color:var(--text3);margin:0 2px}
+#info-panel{position:absolute;top:4px;right:8px;z-index:5;background:rgba(26,29,34,0.92);border:1px solid var(--bg3);border-radius:6px;padding:6px 10px;font-size:10px;color:var(--text2);line-height:1.6;pointer-events:none}
+#info-panel b{color:var(--text);font-weight:500}
+</style></head><body>
+<div id="top"><span class="title">CVA6 Pipeline Viewer</span>
+<button onclick="document.getElementById('fjson').click()">Load JSON</button><input type="file" id="fjson" accept=".json">
+<span class="tlbl">Zoom</span><input type="range" id="zslider" min="2" max="200" value="24" oninput="setZoom()">
+<span id="zpx" style="font-size:10px;color:var(--text3)">24px</span></div>
+<div id="dropzone"><div class="big">📂</div><div>Drop JSON here</div></div>
+<div id="view"><div id="ruler"><canvas id="rulercanvas"></canvas></div>
+<div id="main"><div id="labels"><canvas id="labcanvas"></canvas></div>
+<div id="timeline"><canvas id="tlcanvas"></canvas><div id="scroller"><div id="scroller-inner"></div></div>
+<div id="info-panel"></div>
+</div></div>
+<div id="leg"><div id="leg-left"></div><div id="leg-right"></div></div></div><div id="tt"></div>
+<script>
+"use strict";
+let vis=[],cMin=0,cMax=0,cellW=24,cycOff=0;
+const ROW_H=18,LW=380;
+const COL={fe1:'#0e2a50',fe2:'#1e4a7a',decode:'#4a2a80',issue:'#352060',
+  alu:'#1a6040',ctrl:'#6a3090',mult:'#2a5a3a',csr:'#3a4a2a',fpu:'#106060',load:'#5a4010',store:'#6a3a10',
+  wb:'#1a5050',commit:'#1a5535',flushed:'#3a1515',icmiss:'#c03030',dbuf:'#1a2a3a',sbwait:'#2a2040',dcmiss:'#c03030'};
+const fuC=f=>({ALU:COL.alu,CTRL:COL.ctrl,MULT:COL.mult,CSR:COL.csr,FPU:COL.fpu,FDIVSQRT:COL.fpu,LOAD:COL.load,STORE:COL.store}[f]||COL.alu);
+const fuT=f=>({ALU:'#70d090',CTRL:'#a060d0',MULT:'#50a060',CSR:'#80a050',FPU:'#50a0a0',FDIVSQRT:'#50a0a0',LOAD:'#c09030',STORE:'#c07020'}[f]||'#70d090');
+// FU_LAT removed: using actual wb_cycle from VCD
+function parseRegs(mn){
+  const p=(mn||'').split(/\s+/);if(p.length<2)return{d:null,s:[]};
+  const m=p[0],ops=p.slice(1).join('').split(',');if(!ops.length)return{d:null,s:[]};
+  const noD=['sd','sw','sh','sb','fsd','fsw','bnez','beqz','beq','bne','blt','bge','bltu','bgeu','nop','ret','j','jr','csrw'];
+  if(noD.includes(m))return{d:null,s:ops.map(o=>o.replace(/.*\(/,'').replace(/\)/,''))};
+  if(m.startsWith('csr'))return{d:null,s:[]};
+  const dest=ops[0],srcs=[];
+  for(let i=1;i<ops.length;i++){const o=ops[i];srcs.push(o.replace(/.*\(/,'').replace(/\)/,''));
+    const pm=o.match(/\((\w+)\)/);if(pm)srcs.push(pm[1]);}
+  return{d:dest,s:srcs};
+}
+function parse(data){
+  const instrs=data.instructions||[],spec=data.speculative||[];
+  const regReady={};vis=[];let penEnd=0;
+  const instrCount=instrs.length>1?instrs.length-1:instrs.length;
+  for(let ii=0;ii<instrCount;ii++){
+    const ins=instrs[ii];
+    const mn=ins.mnemonic||'?',fu=ins.fu||'ALU';
+    let dec=ins.decode_cycle??null,ex=ins.exec_cycle??null;const cc=ins.commit_cycle??null;
+    if(ex===null&&dec!==null)ex=dec+2;if(dec===null&&ex!==null)dec=ex-2;
+    const iss=dec!==null?dec+1:null;
+    const icMiss=ins.icache_miss===true;
+    const icMissCyc=ins.ic_miss_cycle??null;
+    const icWrenCyc=ins.ic_wren_cycle??null;
+    let fe1=ins.fe1_group??(dec!==null?dec-2:null);
+    let fe2=ins.fe2_group??(dec!==null?dec-1:null);
+    const isMisAny=!!ins.fe2_extended||!!ins.misaligned;
+    const stallUntil=ins.fe1_stall_until!=null?rc(ins.fe1_stall_until):null;
+    // IC miss: penEnd always = fe1+7 (7-stage model, mc = fe1+1 from VCD)
+    if(icMiss&&fe1!==null&&icMissCyc!==null){
+      penEnd=Math.max(penEnd,fe1+7);
+    }
+    // Stuck: extend fe2 so its bar doesn't end before penalty
+    if(ins.fe1_stuck_until&&fe2!==null){
+      const barW=isMisAny?2:1;
+      if(fe2+barW<penEnd) fe2=penEnd-barW;
+    }
+    // Normal after penalty: shift fe1 forward
+    if(!icMiss&&!ins.fe1_stuck_until&&fe1!==null&&fe1<penEnd){
+      fe1=penEnd; fe2=fe1+1;
+    }
+    const flushed=!!ins.flushed;
+    const lastStage=ins.last_stage||null;
+    let showDec=true,showIss=true,showEx=true;
+    if(flushed&&lastStage){
+      if(lastStage==='fe2'){showDec=false;showIss=false;showEx=false;}
+      else if(lastStage==='dec'){showIss=false;showEx=false;}
+      else if(lastStage==='iss'){showEx=false;}
+    }
+    const visDec=showDec?dec:null;
+    const visIss=showIss?iss:null;
+    const visEx=showEx?ex:null;
+    const exE0=ins.wbCyc!=null?rc(ins.wbCyc):visEx!==null?visEx+1:null;
+    const{d:dest,s:srcs}=parseRegs(mn);
+    let dW=0,dR=null;
+    if(visEx!==null){for(const src of srcs){const r=regReady[src]||0;if(r>visEx&&r-visEx>dW){dW=r-visEx;dR=src;}}}
+    let exE=exE0!==null?exE0+dW:null;
+    if(exE!==null&&cc!==null&&exE>cc)exE=cc;
+    // For serial FPU (FDIVSQRT): execute occupies scoreboard until commit
+    // sb_wait now computed from wb_cycle to commit_cycle
+    // For LOAD with DCache miss: result available at dc_data_cycle (ld_valid)
+    const dcMiss=!!ins.dcache_miss;
+    const lsuStall=!!ins.lsu_stall;
+    const dcData=ins.dc_data_cycle??null;
+    if((dcMiss||lsuStall)&&cc!==null){
+      exE=dcData!==null?dcData:cc;
+    }
+    if(dest&&exE!==null)regReady[dest]=exE;
+    const hasWb=exE!==null&&cc!==null&&cc>exE;
+    let br=null;if(ins.branch_mispredict!==undefined)br={mis:ins.branch_mispredict,tk:ins.branch_taken};
+    const dcSub=dcMiss?{miss:ins.dc_miss_cycle??null,req:ins.dc_mem_req_cycle??null,
+      resp:ins.dc_mem_resp_cycle??null,refillReq:ins.dc_refill_req_cycle??null,
+      refillRsp:ins.dc_refill_rsp_cycle??null,data:ins.dc_data_cycle??null}:null;
+    vis.push({pc:ins.pc||'?',mn,fu,fe1,fe2,dec:visDec,iss:visIss,ex:visEx,exE:flushed?null:exE,
+      wbS:null,wbE:null,cc,dW,dR,br,sbWait:null,dcMiss,dcSub,lsuStall,dcData,
+      icMiss,icMissCyc:icMissCyc??null,icWrenCyc:icWrenCyc??null,compressed:!!ins.compressed,fe1StuckUntil:ins.fe1_stuck_until??null,fe1StallUntil:ins.fe1_stall_until??null,
+      flushed,sortDec:dec,misaligned:!!ins.misaligned,fe2Extended:!!ins.fe2_extended,causesShift:!!ins.causes_shift,
+      issueStallStart:ins.issue_stall_start??null,issueStallType:ins.issue_stall_type??null,
+      wbCyc:ins.wb_cycle??null,transId:ins.trans_id??null,
+      sbSlot:ins.sb_slot??null,sbRes:ins.sb_residency??null,fetchGroup:ins.fetch_group??null,
+      commitPort:ins.commit_port??null,wbPort:ins.wb_port??null,
+      stBufBlocked:!!ins.commit_blocked_st_buf,rvcPair:!!ins.rvc_pair,
+      lsuBusy:!!ins.lsu_busy,ldStates:ins.ld_states||null,stallReasons:ins.stall_reasons||[],isReplay:!!ins.is_replay});
+  }
+  for(const s of spec){
+    const dec=s.decode_cycle??null;
+    vis.push({pc:s.pc||'?',mn:s.mnemonic||'?',fu:s.fu||'ALU',
+      fe1:dec!==null?dec-2:null,fe2:dec!==null?dec-1:null,
+      dec,iss:null,ex:null,exE:null,wbS:null,wbE:null,cc:null,
+      dW:0,dR:null,br:null,icMiss:false,icMissCyc:null,icWrenCyc:null,flushed:true});
+  }
+  vis.sort((a,b)=>{const da=(a.sortDec??a.dec??9999),db=(b.sortDec??b.dec??9999);if(da!==db)return da-db;return(a.flushed?1:0)-(b.flushed?1:0);});
+  // Compute blocking predecessor for residency display
+  for(let i=0;i<vis.length;i++){
+    const v=vis[i];
+    if(v.wbCyc==null||v.cc==null)continue;
+    const wb=rc(v.wbCyc), cc=rc(v.cc);
+    if(cc<=wb)continue;
+    // Find the instruction that's blocking this one from retiring
+    // It's the most recent earlier instruction whose commit >= this instruction's wb
+    for(let j=i-1;j>=Math.max(0,i-8);j--){
+      const p=vis[j];
+      if(p.cc!=null&&rc(p.cc)>=wb){
+        v.blockedBy=j; // index of blocking instruction
+        break;
+      }
+    }
+  }
+  // RVC Bundle alignment: instructions sharing fetchGroup MUST have identical fe1/fe2
+  const fgMap={};
+  vis.forEach((v,i)=>{if(v.fetchGroup!=null)fgMap[v.fetchGroup]=(fgMap[v.fetchGroup]||[]).concat(i);});
+  Object.values(fgMap).forEach(idxs=>{
+    if(idxs.length<2)return;
+    const fe1s=idxs.map(i=>vis[i].fe1).filter(v=>v!=null);
+    const fe2s=idxs.map(i=>vis[i].fe2).filter(v=>v!=null);
+    if(fe1s.length>0){const sh=Math.min(...fe1s); idxs.forEach(i=>{vis[i].fe1=sh;});}
+    if(fe2s.length>0){const sh=Math.max(...fe2s); idxs.forEach(i=>{vis[i].fe2=sh;});}
+  });
+  const allC=vis.flatMap(i=>[i.fe1,i.fe2,i.dec,i.iss,i.ex,i.exE,i.cc].filter(v=>v!==null));
+  if(!allC.length){alert('No data');return;}
+  cycOff=Math.min(...allC);cMin=0;cMax=Math.max(...allC)-cycOff;
+  buildLeg();buildInfoPanel();document.getElementById('dropzone').style.display='none';
+  document.getElementById('view').style.display='flex';
+  requestAnimationFrame(()=>{setupScroll();draw();});
+}
+const rc=c=>c!==null?c-cycOff:null;
+function buildLeg(){
+  const tagItems=[
+    {l:'[C] Compressed 16b',c:'#404050'},{l:'[N] Normal 32b',c:'#404050'},
+    {l:'[CM] Compressed → shift',c:'#706050'},{l:'[NM] Normal misaligned',c:'#706050'}];
+  document.getElementById('leg-left').innerHTML=
+    '<span style="color:var(--text3);font-weight:500">Instr:</span> '+
+    tagItems.map(s=>'<div class="li"><div class="ld" style="background:'+s.c+'"></div>'+s.l+'</div>').join('');
+  const S=[{k:'fe1',l:'Fe1',c:COL.fe1},{k:'fe2',l:'Fe2',c:COL.fe2},
+    {k:'iq',l:'IQ full (backend)',c:'#3a4a2a'},{k:'bp',l:'Backpressure',c:'#665544'},
+    {k:'raw',l:'DATA_DEP',c:'#884422'},{k:'fub',l:'UNIT_BUSY',c:'#c0a020'},{k:'sbf',l:'SB_FULL',c:'#882222'},{k:'stb',l:'STB_FULL',c:'#aa4400'},{k:'gnt',l:'WAIT_GNT (bus)',c:'#806020'},{k:'tag',l:'SEND_TAG',c:'#606030'},{k:'rval',l:'WAIT_RVALID (mem)',c:'#604080'},{k:'lsub',l:'LSU_BLOCK',c:'#885500'},
+    {k:'icm',l:'IC miss',c:COL.icmiss},{k:'dbuf',l:'Decode buf',c:COL.dbuf},
+    {k:'dec',l:'Decode',c:COL.decode},{k:'iss',l:'Issue',c:COL.issue},
+    {k:'alu',l:'ALU',c:COL.alu},{k:'ctrl',l:'Branch',c:COL.ctrl},{k:'mult',l:'Mult',c:COL.mult},
+    {k:'fpu',l:'FPU add/mul',c:COL.fpu},{k:'fdivsqrt',l:'FPU div/sqrt',c:COL.fpu},
+    {k:'sbwait',l:'SB/RAW wait',c:COL.sbwait},{k:'load',l:'Load',c:COL.load},{k:'dcm',l:'DC miss',c:COL.dcmiss},{k:'store',l:'Store',c:COL.store},
+    {k:'csr',l:'CSR',c:COL.csr},{k:'wb',l:'Commit wait',c:COL.wb},{k:'cm0',l:'Commit p0',c:COL.commit},{k:'cm1',l:'Commit p1',c:'#1a6555'},
+    {k:'fl',l:'Flushed',c:COL.flushed},{k:'res',l:'SB residency',c:'#2a2040'},{k:'rpl',l:'Replay (ghost)',c:'#606060'},{k:'rvc',l:'RVC bundle',c:'#40a040'},{k:'c',l:'[C] Compressed 16b',c:'#60a060'},{k:'nm',l:'[NM] Misaligned 32b',c:'#a06060'}];
+  const p=new Set();
+  for(const i of vis){if(i.fe1!==null)p.add('fe1');if(i.fe2!==null)p.add('fe2');if(i.icMiss)p.add('icm');
+    if(i.fe2!==null&&i.dec!==null&&i.dec>i.fe2+1)p.add('dbuf');
+    if(i.dec!==null)p.add('dec');if(i.iss!==null)p.add('iss');
+    const fk={ALU:'alu',CTRL:'ctrl',MULT:'mult',FPU:'fpu',FDIVSQRT:'fdivsqrt',LOAD:'load',STORE:'store',CSR:'csr'}[i.fu]||'alu';
+    p.add(fk);
+    if(i.wbCyc!=null&&i.cc!=null&&i.cc>i.wbCyc)p.add('sb');
+    if((i.dW||0)>1)p.add('sbwait'); // RAW wait also uses sbwait color
+    if(i.dcMiss)p.add('dcm');
+    if(i.wbS!==null&&i.wbE!==null&&i.wbE>i.wbS)p.add('wb');if(i.cc!==null)p.add('cm');
+    if(i.flushed)p.add('fl');}
+  let html='<span style="color:var(--text3);font-weight:500">Pipeline:</span> ';
+  html+=S.filter(s=>p.has(s.k)).map(s=>'<div class="li"><div class="ld" style="background:'+s.c+'"></div>'+s.l+'</div>').join('');
+  const hasMis=vis.some(i=>i.br?.mis),hasPred=vis.some(i=>i.br&&!i.br.mis);
+  if(hasMis||hasPred){
+    html+='<span class="lsep">│</span>';
+    if(hasPred)html+='<div class="li"><div class="ld" style="background:#40c0ff"></div>Pred OK</div>';
+    if(hasMis)html+='<div class="li"><div class="ld" style="background:#ff4040"></div>Mispred</div>';
+  }
+  document.getElementById('leg-right').innerHTML=html;
+}
+function buildInfoPanel(){
+  const fus=new Set(vis.map(i=>i.fu));
+  let html='<b>CVA6 Architecture</b><br>';
+  html+='Scoreboard: <b>8</b> entries (shared)<br>';
+  html+='Decode buffer: <b>2×4</b>, addr queue(2) limits fetch<br>';
+  html+='Commit ports: <b>2</b><br>';
+  html+='──────────────<br>';
+  html+='<b>FU distribution:</b><br>';
+  if(fus.has('ALU'))html+='ALU: <b>1c</b>, unlimited<br>';
+  if(fus.has('CTRL'))html+='Branch: <b>1c</b>, penalty 1-2c<br>';
+  if(fus.has('MULT'))html+='Mult: <b>2c</b>, max 1<br>';
+  if(fus.has('FPU'))html+='FPU add/mul: <b>4c</b>, max 4 (pipelined)<br>';
+  if(fus.has('FDIVSQRT'))html+='FPU div/sqrt: <b>~6c</b>, max 4 then stall<br>';
+  if(fus.has('LOAD'))html+='Load: <b>2c</b> hit / <b>~10c</b> miss, max 1<br>';
+  if(fus.has('STORE'))html+='Store: <b>1c</b>, max 1<br>';
+  if(fus.has('CSR'))html+='CSR: <b>1c</b>, unlimited<br>';
+  document.getElementById('info-panel').innerHTML=html;
+}
+function draw(){
+  const sc=document.getElementById('scroller'),sx=sc.scrollLeft,sy=sc.scrollTop;
+  const fC=cMin+Math.floor(sx/cellW),fR=Math.floor(sy/ROW_H),oX=-(sx%cellW),oY=-(sy%ROW_H);
+  const rCv=document.getElementById('rulercanvas'),rE=document.getElementById('ruler');
+  rCv.width=rE.clientWidth;rCv.height=22;const rx=rCv.getContext('2d');rx.clearRect(0,0,rCv.width,22);
+  for(let i=0;i<Math.ceil(rCv.width/cellW)+2;i++){const c=fC+i,x=oX+i*cellW;
+    if(cellW>=10||c%5===0){rx.fillStyle=c%10===0?'#606058':'#40403a';rx.font='9px monospace';
+      rx.textAlign='center';rx.fillText(c,x+cellW/2,13);rx.textAlign='left';}
+    rx.fillStyle='#2a2a28';rx.fillRect(x,18,1,4);}
+  const vH=document.getElementById('labels').clientHeight;
+  const lCv=document.getElementById('labcanvas');lCv.width=LW;lCv.height=vH;const lc=lCv.getContext('2d');lc.clearRect(0,0,LW,vH);
+  const tCv=document.getElementById('tlcanvas'),tW=document.getElementById('timeline').clientWidth;
+  tCv.width=tW;tCv.height=vH;const tc=tCv.getContext('2d');tc.clearRect(0,0,tW,vH);
+  const lR=Math.min(fR+Math.ceil(vH/ROW_H),vis.length-1);
+  for(let r=fR;r<=lR;r++){const ins=vis[r];if(!ins)continue;
+    const ry=oY+(r-fR)*ROW_H;if(ry+ROW_H<0||ry>vH)continue;
+    if(r%2===0){lc.fillStyle=tc.fillStyle='rgba(255,255,255,0.015)';lc.fillRect(0,ry,LW,ROW_H);tc.fillRect(0,ry,tW,ROW_H);}
+    if(cellW>=8)for(let i=0;i<Math.ceil(tW/cellW)+2;i++){const x=oX+i*cellW;tc.fillStyle=(fC+i)%10===0?'#28282a':'#1e1e20';tc.fillRect(x,ry,1,ROW_H);}
+    lc.font='9px monospace';lc.fillStyle='#404048';lc.fillText(String(r+1).padStart(4),2,ry+ROW_H-4);
+    lc.fillStyle=ins.flushed?'#804040':'#505070';lc.fillText(ins.pc,36,ry+ROW_H-4);
+    const cTag=ins.compressed?'C':'N';
+    const mTag=(ins.misaligned||ins.causesShift)?'M':'';
+    const fullTag='['+cTag+mTag+']';
+    lc.fillStyle=(ins.misaligned||ins.causesShift)?'#706050':'#404050';lc.font='10px monospace';
+    lc.fillText(fullTag,126,ry+ROW_H-3);
+    lc.fillStyle=ins.flushed?'#804040':fuT(ins.fu);
+    lc.fillText(ins.mn.length>26?ins.mn.slice(0,25)+'…':ins.mn,160,ry+ROW_H-3);
+    if(ins.flushed){lc.fillStyle='#ff404080';lc.font='9px monospace';lc.fillText('✗flush',LW-50,ry+ROW_H-4);}
+    drawBars(tc,ins,ry,fC,oX);}
+  document.getElementById('zpx').textContent=cellW+'px · '+vis.length+' instr';
+}
+function drawBars(ctx,ins,ry,fC,oX){
+  const h=ROW_H-2,y0=ry+1;
+  function seg(c0,c1,col,hF,lb){if(c0===null||c1===null||c1<=c0)return;
+    const x=oX+(c0-fC)*cellW,w=Math.max(1,(c1-c0)*cellW-1);if(x+w<0||x>25000)return;
+    const hh=Math.max(1,Math.round(h*hF)),yy=y0+h-hh;ctx.fillStyle=col;ctx.fillRect(x,yy,w,hh);
+    if(lb&&cellW>=14&&w>=14){ctx.font=Math.min(10,Math.max(8,hh-3))+'px monospace';ctx.fillStyle='rgba(255,255,255,0.55)';
+      ctx.save();ctx.beginPath();ctx.rect(x+1,yy,w-2,hh);ctx.clip();ctx.fillText(lb,x+3,yy+hh-2);ctx.restore();}}
+  const fe1=rc(ins.fe1),fe2=rc(ins.fe2),dec=rc(ins.dec),iss=rc(ins.iss);
+  const exS=rc(ins.ex),exE=rc(ins.exE),cc=rc(ins.cc),wbS=rc(ins.wbS),wbE=rc(ins.wbE);
+  const d=ins.flushed,isRpl=ins.isReplay;
+  if(isRpl||d)ctx.globalAlpha=0.2;
+  const sc=c=>d?COL.flushed:c,ec=d?COL.flushed:fuC(ins.fu);
+  const mn0=(ins.mn||'').split(/\s+/)[0]||'ex';
+  const stuckUntil=ins.fe1StuckUntil!=null?rc(ins.fe1StuckUntil):null;
+  const stallUntil=ins.fe1StallUntil!=null?rc(ins.fe1StallUntil):null;
+  const isMisaligned=!!ins.fe2Extended;
+  // All bars use hF=1.0 (full height, same as commit)
+  // VERSION: v36 - always fe1-based, icX always at fe1+1
+  // Misaligned originator: [fe1][fe2w1][icX][addr][mem 2c][refill][fe2w2] = 8c
+  // Misaligned shared:     [fe1][icX][addr][mem 2c][refill][fe2 2c]       = 7c  
+  // Non-misaligned:        [fe1][icX][addr][mem 2c][refill][fe2]          = 7c
+  if(ins.icMiss&&isMisaligned&&fe1!==null&&fe2!==null){
+    const wc=ins.icWrenCyc!=null?rc(ins.icWrenCyc):null;
+    const mc=ins.icMissCyc!=null?rc(ins.icMissCyc):null;
+    const gap=fe2-fe1;
+    if(mc!==null&&wc!==null&&gap>2){
+      // Shared misaligned: [fe1][icX][addr][mem 2c][refill][fe2 2c]
+      seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+      seg(fe1+1,fe1+2,COL.icmiss,1.0,'icX');
+      seg(fe1+2,fe1+3,sc('#704020'),1.0,'addr');
+      seg(fe1+3,fe1+5,sc('#803020'),1.0,'mem');
+      seg(fe1+5,fe1+6,sc('#604020'),1.0,'refill');
+      seg(fe1+6,fe1+8,sc(COL.fe2),1.0,'fe2');
+    } else if(mc!==null&&wc!==null){
+      // Originator: [fe1][fe2w1][icX][addr][mem 2c][refill][fe2w2]
+      seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+      seg(fe1+1,fe1+2,sc(COL.fe2),1.0,'fe2');
+      seg(fe1+2,fe1+3,COL.icmiss,1.0,'icX');
+      seg(fe1+3,fe1+4,sc('#704020'),1.0,'addr');
+      seg(fe1+4,fe1+6,sc('#803020'),1.0,'mem');
+      seg(fe1+6,fe1+7,sc('#604020'),1.0,'refill');
+      seg(fe1+7,fe1+8,sc(COL.fe2),1.0,'fe2');
+    } else {
+      seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+      seg(fe2,fe2+2,sc(COL.fe2),1.0,'fe2');
+    }
+  } else if(ins.icMiss&&fe1!==null&&fe2!==null){
+    // Non-misaligned IC miss: always 7 stages [fe1][icX][addr][mem 2c][refill][fe2]
+    const wc=ins.icWrenCyc!=null?rc(ins.icWrenCyc):null;
+    const mc=ins.icMissCyc!=null?rc(ins.icMissCyc):null;
+    if(mc!==null&&wc!==null){
+      seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+      seg(fe1+1,fe1+2,COL.icmiss,1.0,'icX');
+      seg(fe1+2,fe1+3,sc('#704020'),1.0,'addr');
+      seg(fe1+3,fe1+5,sc('#803020'),1.0,'mem');
+      seg(fe1+5,fe1+6,sc('#604020'),1.0,'refill');
+      seg(fe1+6,fe1+7,sc(COL.fe2),1.0,'fe2');
+    } else {
+      seg(fe1,fe1+1,COL.icmiss,1.0,'icX');
+      seg(fe2,fe2+1,sc(COL.fe2),1.0,'fe2');
+    }
+  } else if(stuckUntil!==null&&fe1!==null&&fe2!==null){
+    seg(fe1,fe2,sc(COL.fe1),1.0,'fe1');
+    if(isMisaligned) seg(fe2,fe2+2,sc(COL.fe2),1.0,'fe2');
+    else seg(fe2,fe2+1,sc(COL.fe2),1.0,'fe2');
+  } else if(isMisaligned&&stallUntil!==null&&fe1!==null&&fe2!==null){
+    // Misaligned with backpressure
+    seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+    if(fe2>fe1+1) seg(fe1+1,fe2,sc('#3a4a2a'),0.8,'iq');
+    seg(fe2,fe2+2,sc(COL.fe2),1.0,'fe2');
+  } else if(isMisaligned&&fe1!==null&&fe2!==null){
+    seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+    seg(fe2,fe2+2,sc(COL.fe2),1.0,'fe2');
+  } else if(stallUntil!==null&&fe1!==null&&fe2!==null){
+    // Backpressure: fe1 + IQ_FULL stall (distinct from IC miss)
+    seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+    if(fe2>fe1+1){
+      // IQ full / backend pressure - different shade from IC miss
+      seg(fe1+1,fe2,sc('#3a4a2a'),0.8,'iq');
+    }
+    seg(fe2,fe2+1,sc(COL.fe2),1.0,'fe2');
+  } else if(fe1!==null&&fe2!==null){
+    seg(fe1,fe1+1,sc(COL.fe1),1.0,'fe1');
+    seg(fe2,fe2+1,sc(COL.fe2),1.0,'fe2');
+  }
+  // Compute fe2End for dbuf bar
+  let fe2End;
+  if(ins.icMiss&&ins.icWrenCyc!=null){
+    fe2End=fe1+(isMisaligned?8:7);
+  } else if(isMisaligned){
+    fe2End=fe2!==null?fe2+2:null;
+  } else {
+    fe2End=fe2!==null?fe2+1:null;
+  }
+  if(fe2End!==null&&dec!==null&&dec>fe2End)seg(fe2End,dec,sc(COL.dbuf),1.0,'dbuf');
+  // Issue stall bar (RAW hazard or FU busy)
+  const issStall=ins.issueStallStart!=null?rc(ins.issueStallStart):null;
+  const issType=ins.issueStallType||'';
+  if(issStall!==null&&dec!==null&&dec>issStall){
+    const stColors={'DATA_DEP':'#884422','RAW':'#884422','SB_FULL':'#882222','UNIT_BUSY':'#c0a020','FU_BUSY':'#c0a020','STB_FULL':'#aa4400','LSU_BLOCK':'#885500'};
+    const stCol=sc(stColors[issType]||'#664433');
+    const stLbl=issType||'stall';
+    seg(issStall+1,dec,stCol,0.85,stLbl);
+    // Draw stall label centered on the bar
+    if(dec-issStall>2){
+      const sx=oX+(issStall+1-fC)*cellW, sw=(dec-issStall-1)*cellW;
+      if(sw>25){ctx.font='bold 8px monospace';ctx.fillStyle='#c0b090';
+        ctx.fillText(stLbl,sx+2,y0+9);}
+    }
+  }
+  if(dec!==null)seg(dec,dec+1,sc(COL.decode),1.0,'dec');
+  if(iss!==null)seg(iss,iss+1,sc(COL.issue),1.0,'iss');
+  // ═══ LAYER 1: Scoreboard Residency (background via destination-over) ═══
+  const wbCyc=ins.wbCyc!=null?rc(ins.wbCyc):null;
+  
+  // ═══ LAYER 2: Execute (FU bars, drawn first as solid colors) ═══
+  const dcM=ins.dcMiss;
+  // LOADs with HPDcache state tracking (highest priority)
+  if(ins.ldStates&&ins.ldStates.length>0&&exS!==null&&cc!==null){
+    const lds=ins.ldStates;
+    const fs=rc(lds[0].cycle);
+    seg(exS,Math.min(fs,cc),ec,1.0,mn0);
+    for(let si=0;si<lds.length;si++){
+      const sc2=rc(lds[si].cycle);
+      const ne=si<lds.length-1?rc(lds[si+1].cycle):(wbCyc!=null?wbCyc+1:cc);
+      const st=lds[si].state;
+      if(st===1)seg(sc2,Math.min(ne,cc),'#806020',1.0,'gnt');
+      else if(st===5)seg(sc2,Math.min(ne,cc),'#604080',1.0,'rval');
+      else if(st===2)seg(sc2,Math.min(ne,cc),'#606030',1.0,'tag');
+      else seg(sc2,Math.min(ne,cc),ec,1.0,mn0);
+    }
+  } else if(dcM&&exS!==null&&cc!==null){
+    const ds=ins.dcSub;
+    const missC=ds?.miss!=null?rc(ds.miss):exS+2;
+    const reqC=ds?.req!=null?rc(ds.req):null;
+    const refReqC=ds?.refillReq!=null?rc(ds.refillReq):null;
+    const dataC=ds?.data!=null?rc(ds.data):cc-1;
+    seg(exS,Math.min(missC,cc),ec,1.0,mn0);
+    if(reqC!=null&&refReqC!=null){
+      seg(missC,reqC,sc(COL.dcmiss),1.0,'dc✗');
+      seg(reqC,reqC+1,sc('#704020'),1.0,'addr');
+      if(refReqC>reqC+1) seg(reqC+1,refReqC,sc('#803020'),1.0,'mem');
+      if(dataC>refReqC) seg(refReqC,dataC,sc('#604020'),1.0,'refill');
+    } else if(reqC!=null){
+      seg(missC,reqC,sc(COL.dcmiss),1.0,'dc✗');
+      if(dataC>reqC) seg(reqC,dataC,sc('#803020'),1.0,'mem');
+    } else {
+      if(dataC>missC) seg(missC,dataC,sc(COL.dcmiss),1.0,'dc✗');
+    }
+    if(dataC<cc)seg(dataC,cc,sc(COL.wb),1.0,'wb');
+  } else if(ins.lsuStall&&exS!==null&&cc!==null){
+    const dataC=ins.dcData!=null?rc(ins.dcData):cc-1;
+    seg(exS,exS+2,ec,1.0,mn0);
+    if(exS+2<dataC)seg(exS+2,dataC,sc('#5a3060'),1.0,'LSU');
+    if(dataC<cc)seg(dataC,cc,sc(COL.wb),1.0,'wb');
+  } else if(exS!==null&&exE!==null){
+    seg(exS,exE,ec,1.0,mn0);
+  }
+
+  // ═══ LAYER 1 RENDER: Residency fills gaps behind exec (destination-over) ═══
+  if(wbCyc!==null&&cc!==null&&cc>wbCyc){
+    const rx1=oX+(wbCyc+1-fC)*cellW,rx2=oX+(cc-fC)*cellW,rw=rx2-rx1;
+    if(rw>0&&rx2>0){
+      ctx.save();
+      ctx.globalCompositeOperation='destination-over';
+      ctx.fillStyle='#2a2040';ctx.globalAlpha=(isRpl||d?0.2:1)*0.3;
+      ctx.fillRect(rx1,y0,rw,h);
+      ctx.globalCompositeOperation='source-over';
+      ctx.strokeStyle='#4a4060';ctx.lineWidth=1;ctx.setLineDash([3,3]);
+      ctx.globalAlpha=(isRpl||d?0.2:1)*0.5;ctx.strokeRect(rx1,y0,rw,h);ctx.setLineDash([]);
+      ctx.globalAlpha=(isRpl||d)?0.2:1;
+      if(rw>18){ctx.font='9px monospace';ctx.fillStyle='#8070a0';ctx.fillText('res',rx1+2,y0+h-2);}
+      ctx.restore();
+    }
+  }
+  
+  // ═══ LAYER 3: Commit ═══
+  if(cc!==null){
+    const cp=ins.commitPort;
+    const cmtCol=ins.stBufBlocked?'#882020':cp===1?'#1a6555':sc(COL.commit);
+    const cmtLbl=ins.stBufBlocked?'STB!':cp===1?'cm1':'cm0';
+    seg(cc,cc+1,cmtCol,1.0,cmtLbl);
+  }
+  if(isRpl||d){
+    ctx.globalAlpha=1.0;
+    // Draw link to successful retry
+    if(ins.retryOffset!=null){
+      const retryY=ry+ins.retryOffset*ROW_H+ROW_H/2;
+      ctx.strokeStyle='#606060';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+      ctx.beginPath();ctx.moveTo(oX+(fe1-fC)*cellW+2,ry+h);ctx.lineTo(oX+(fe1-fC)*cellW+2,retryY);
+      ctx.stroke();ctx.setLineDash([]);
+    }
+  }
+  // Flushed label
+  if(d&&dec!==null){
+    ctx.font='bold 8px monospace';ctx.fillStyle='#ff4040';
+    ctx.fillText('FLUSHED',oX+(dec-fC)*cellW,y0-1);
+  }
+  if(ins.br){const mis=ins.br.mis,bCol=mis?'#ff4040':'#40c0ff',bLbl=mis?'✗mispredict':'✓pred';
+    const bx=oX+((exS||dec||0)-fC)*cellW;
+    if(bx>=0&&bx<25000){ctx.fillStyle=bCol;ctx.fillRect(bx,y0+h-3,Math.max(cellW,2),3);
+    if(cellW>=14){ctx.font='8px monospace';ctx.fillStyle=bCol;ctx.fillText(bLbl,bx,y0-1);}
+    // Branch redirect arrow to next instruction
+    if(mis){
+      ctx.strokeStyle='#ff4040';ctx.lineWidth=1;ctx.setLineDash([2,2]);
+      ctx.beginPath();ctx.moveTo(bx+cellW,y0+h/2);ctx.lineTo(bx+cellW+20,y0+h+ROW_H/2);
+      ctx.stroke();ctx.setLineDash([]);
+    }}}
+}
+function setupScroll(){const s=document.getElementById('scroller'),i=document.getElementById('scroller-inner');
+  i.style.width=(cMax-cMin+5)*cellW+'px';i.style.height=vis.length*ROW_H+'px';s.onscroll=()=>requestAnimationFrame(draw);}
+function setZoom(){cellW=+document.getElementById('zslider').value;setupScroll();draw();}
+document.getElementById('tlcanvas').addEventListener('mousemove',ev=>{
+  const s=document.getElementById('scroller'),r=ev.target.getBoundingClientRect();
+  const row=Math.floor((ev.clientY-r.top+s.scrollTop)/ROW_H);
+  if(row<0||row>=vis.length){document.getElementById('tt').style.display='none';return;}
+  const ins=vis[row];
+  const wbCyc=ins.wbCyc!=null?rc(ins.wbCyc):null;
+  const exDur=ins.ex!==null&&ins.exE!==null?ins.exE-ins.ex:0;
+  const sbDelay=wbCyc!==null&&ins.cc!==null?Math.max(0,rc(ins.cc)-wbCyc):0;
+  const dbufT=ins.fe2!==null&&ins.dec!==null?Math.max(0,ins.dec-ins.fe2-1):0;
+  const stallT=ins.icMiss&&ins.fe1!==null&&ins.fe2!==null?Math.max(0,ins.fe2-ins.fe1-2):0;
+  const tt=document.getElementById('tt');tt.style.display='block';
+  tt.style.left=Math.min(ev.clientX+14,window.innerWidth-430)+'px';tt.style.top=(ev.clientY-10)+'px';
+  const fe1=rc(ins.fe1),fe2=rc(ins.fe2),dec=rc(ins.dec),iss=rc(ins.iss),exS=rc(ins.ex),exE=rc(ins.exE),cc=rc(ins.cc);
+  const tid=ins.transId??'?', sbSlot=ins.sbSlot??'?', cPort=ins.commitPort??'?';
+  const issStall=ins.issueStallType||'';
+  const rvc=ins.rvcPair?'<span style="color:#60c060"> RVC pair</span>':'';
+  const stBuf=ins.stBufBlocked?'<span style="color:#ff6060"> STB_FULL</span>':'';
+  tt.innerHTML='<div style="font-weight:500;color:#e4e2dc">'+ins.mn+rvc+'</div>'+
+    '<div style="color:#707070;font-size:10px;margin-bottom:4px">'+ins.pc+' · '+ins.fu+' · slot='+sbSlot+' tid='+tid+
+    (ins.flushed?' · <span style="color:#ff4040">FLUSHED</span>':'')+
+    (ins.isReplay?' · <span style="color:#888">REPLAY'+(ins.replayCount>1?' ('+ins.replayCount+'x)':'')+'</span>':'')+'</div>'+
+    '<table style="border-collapse:collapse;font-size:11px">'+
+    '<tr><td style="color:#5080a0;padding-right:10px">Fe1</td><td>C'+(fe1??'?')+'</td></tr>'+
+    (ins.icMiss?'<tr><td style="color:#e05050">IC Miss</td><td>'+stallT+'c stall</td></tr>':'')+
+    '<tr><td style="color:#5080a0">Fe2</td><td>C'+(fe2??'?')+'</td></tr>'+
+    (dbufT>0?'<tr><td style="color:#606060">Decode buf</td><td>'+dbufT+'c</td></tr>':'')+
+    (ins.flushed?'':
+    '<tr><td style="color:#5080a0">Decode/Issue</td><td>C'+(dec??'?')+
+    (issStall?' <span style="color:'+(issStall==='RAW'?'#c08040':issStall==='SB_FULL'?'#c04040':'#c0a020')+'">'+issStall+'</span>':'')+'</td></tr>'+
+    '<tr><td style="color:#5080a0">Execute</td><td>C'+(exS??'?')+'→C'+(exE??'?')+' ('+exDur+'c)</td></tr>'+
+    '<tr><td style="color:#5080a0">Writeback</td><td>C'+(wbCyc??'?')+'</td></tr>'+
++
+    (sbDelay>0?'<tr><td style="color:#8060a0">Residency</td><td>'+sbDelay+'c'+(ins.blockedBy!=null?' (blocked by row '+(ins.blockedBy+1)+': '+vis[ins.blockedBy].mn.split(' ')[0]+')':'')+'</td></tr>':'')+
+    '<tr><td style="color:#5080a0">Commit</td><td>C'+(cc??'?')+' port '+cPort+stBuf+'</td></tr>')+
+    (ins.br?'<tr><td colspan=2 style="padding-top:3px;color:'+(ins.br.mis?'#ff4040':'#40c0ff')+'">'+(ins.br.mis?'✗ Misprediction':'✓ Correct prediction')+'</td></tr>':'')+
+    '</table>';});
+document.getElementById('tlcanvas').addEventListener('mouseleave',()=>{document.getElementById('tt').style.display='none';});
+function loadJSON(t){try{parse(JSON.parse(t));}catch(e){alert('Error: '+e.message);}}
+document.getElementById('fjson').addEventListener('change',e=>{const f=e.target.files[0];if(!f)return;
+  const r=new FileReader();r.onload=ev=>loadJSON(ev.target.result);r.readAsText(f);});
+document.body.addEventListener('dragover',e=>e.preventDefault());
+document.body.addEventListener('drop',e=>{e.preventDefault();
+  for(const f of e.dataTransfer.files){if(f.name.endsWith('.json')){
+    const r=new FileReader();r.onload=ev=>loadJSON(ev.target.result);r.readAsText(f);}}});
+document.getElementById('labels').addEventListener('wheel',ev=>{
+  const s=document.getElementById('scroller');
+  s.scrollTop+=ev.deltaY;s.scrollLeft+=ev.deltaX;ev.preventDefault();},{passive:false});
+window.addEventListener('resize',()=>{if(vis.length){setupScroll();draw();}});
+</script><div id="legend-panel" style="position:fixed;bottom:8px;right:8px;background:#1a1a1a;border:1px solid #333;
+  border-radius:6px;padding:8px 12px;font:11px monospace;color:#aaa;z-index:100;max-width:320px;opacity:0.92">
+  <div style="font-weight:bold;color:#ddd;margin-bottom:6px">Pipeline Stages</div>
+  <div style="display:grid;grid-template-columns:12px 1fr;gap:2px 6px;align-items:center">
+    <span style="background:#1a3050;width:12px;height:10px;display:inline-block"></span><span>fe1: I-Cache request</span>
+    <span style="background:#1a4060;width:12px;height:10px;display:inline-block"></span><span>fe2: I-Cache response</span>
+    <span style="background:#3a4a2a;width:12px;height:10px;display:inline-block"></span><span>iq: Instruction Queue full</span>
+    <span style="background:#1a3a5a;width:12px;height:10px;display:inline-block"></span><span>dec: Decode / iss: Issue</span>
+    <span style="background:#884422;width:12px;height:10px;display:inline-block"></span><span>DATA_DEP: RAW hazard stall</span>
+    <span style="background:#c0a020;width:12px;height:10px;display:inline-block"></span><span>UNIT_BUSY: FU occupied stall</span>
+    <span style="background:#882222;width:12px;height:10px;display:inline-block"></span><span>SB_FULL: Scoreboard full</span>
+  </div>
+  <div style="font-weight:bold;color:#ddd;margin:6px 0 4px">Execute & Memory</div>
+  <div style="display:grid;grid-template-columns:12px 1fr;gap:2px 6px;align-items:center">
+    <span style="background:#806020;width:12px;height:10px;display:inline-block"></span><span>gnt: WAIT_GNT (bus arbitration)</span>
+    <span style="background:#606030;width:12px;height:10px;display:inline-block"></span><span>tag: SEND_TAG (cache lookup)</span>
+    <span style="background:#604080;width:12px;height:10px;display:inline-block"></span><span>rval: WAIT_RVALID (DRAM latency)</span>
+    <span style="background:#c03030;width:12px;height:10px;display:inline-block"></span><span>dc✗: D-Cache miss detected</span>
+  </div>
+  <div style="font-weight:bold;color:#ddd;margin:6px 0 4px">Retire</div>
+  <div style="display:grid;grid-template-columns:12px 1fr;gap:2px 6px;align-items:center">
+    <span style="background:#2a2040;width:12px;height:10px;display:inline-block;border:1px dashed #4a4060"></span><span>res: Scoreboard residency (wb→cmt)</span>
+    <span style="background:#1a5535;width:12px;height:10px;display:inline-block"></span><span>cm0: Commit port 0</span>
+    <span style="background:#1a6555;width:12px;height:10px;display:inline-block"></span><span>cm1: Commit port 1</span>
+    <span style="background:#882020;width:12px;height:10px;display:inline-block"></span><span>STB!: Store buffer full</span>
+  </div>
+  <div style="font-weight:bold;color:#ddd;margin:6px 0 4px">Instruction Types</div>
+  <div style="display:grid;grid-template-columns:12px 1fr;gap:2px 6px;align-items:center">
+    <span style="color:#60a060;font-weight:bold">C</span><span>Compressed (16-bit RVC)</span>
+    <span style="color:#808080;font-weight:bold">N</span><span>Normal (32-bit aligned)</span>
+    <span style="color:#a06060;font-weight:bold">NM</span><span>Normal misaligned (2 fetches)</span>
+  </div>
+</div>
+</body></html>
+
