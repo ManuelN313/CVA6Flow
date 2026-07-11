@@ -97,12 +97,12 @@ def strip_bit_range(path):
 # I$ FSM state constants (from cva6_icache.sv:122)
 # ---------------------------------------------------------------------------
 
-FSM_FLUSH       = "000"
-FSM_IDLE        = "001"
-FSM_READ        = "010"
-FSM_MISS        = "011"
+FSM_FLUSH = "000"
+FSM_IDLE = "001"
+FSM_READ = "010"
+FSM_MISS = "011"
 FSM_KILL_ATRANS = "100"
-FSM_KILL_MISS   = "101"
+FSM_KILL_MISS = "101"
 
 
 # ---------------------------------------------------------------------------
@@ -342,9 +342,12 @@ def build_icache_timeline(vcd_path, scope_prefix, icache_scope):
         DRSP_VLD,   _ = find_suffix("dreq_o.valid")
         DRSP_VADDR, _ = find_suffix("dreq_o.vaddr")
         # Underscored fallbacks
-        if KILL_S2    is None: KILL_S2,    _ = find_suffix("dreq_i_kill_s2")
-        if DRSP_VLD   is None: DRSP_VLD,   _ = find_suffix("dreq_o_valid")
-        if DRSP_VADDR is None: DRSP_VADDR, _ = find_suffix("dreq_o_vaddr")
+        if KILL_S2 is None:
+            KILL_S2,    _ = find_suffix("dreq_i_kill_s2")
+        if DRSP_VLD is None:
+            DRSP_VLD,   _ = find_suffix("dreq_o_valid")
+        if DRSP_VADDR is None:
+            DRSP_VADDR, _ = find_suffix("dreq_o_vaddr")
 
         missing = []
         for name, sig in [

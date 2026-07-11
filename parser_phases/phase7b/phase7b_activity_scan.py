@@ -98,7 +98,8 @@ def main():
             if vid in cand_ids:
                 changes[vid] += 1
                 if len(vals[vid]) < 6:
-                    vals[vid].add(value if len(value) <= 12 else value[:9] + "..")
+                    vals[vid].add(value if len(value) <=
+                                  12 else value[:9] + "..")
 
     # report: rank PATHS by their symbol's change count (desc)
     rows = []

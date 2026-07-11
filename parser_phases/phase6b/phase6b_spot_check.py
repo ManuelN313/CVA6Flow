@@ -43,9 +43,12 @@ def latency(rec):
 def classify(rec):
     """Return one of: primary_miss / coalesced / refill_overlap / clean_hit.
     Strict precedence: primary_miss > coalesced > refill_overlap > clean."""
-    if rec.get("dc_primary_miss"):  return "primary_miss"
-    if rec.get("dc_coalesced"):     return "coalesced"
-    if rec.get("dc_refill_overlap"):return "refill_overlap"
+    if rec.get("dc_primary_miss"):
+        return "primary_miss"
+    if rec.get("dc_coalesced"):
+        return "coalesced"
+    if rec.get("dc_refill_overlap"):
+        return "refill_overlap"
     return "clean_hit"
 
 
@@ -58,7 +61,9 @@ def fmt_events(events, limit=4):
         t = ev["type"]
         c = ev["cycle"]
         if t == "alloc":
-            sid = ev.get("sid"); tid = ev.get("tid"); pf = ev.get("pf")
+            sid = ev.get("sid")
+            tid = ev.get("tid")
+            pf = ev.get("pf")
             parts.append(f"@{c} A[s{sid}/t{tid}/p{pf}]")
         elif t == "check_hit":
             parts.append(f"@{c} CH")
@@ -92,7 +97,8 @@ def main():
 
     instructions = data.get("instructions", [])
     print(f"# {p.name}: {len(instructions)} records")
-    print(f"#   tracer phase6b stats: {data.get('metadata',{}).get('phase6b','?')}")
+    print(
+        f"#   tracer phase6b stats: {data.get('metadata',{}).get('phase6b','?')}")
     print()
 
     # === Histogram across all LOAD (and optionally STORE) records ===
@@ -111,11 +117,12 @@ def main():
             continue
         cls_counts[classify(r)] += 1
         events = r.get("dc_events") or []
-        if events: n_with_events += 1
+        if events:
+            n_with_events += 1
         for ev in events:
             if ev["type"] == "alloc":
                 sid = ev.get("sid")
-                pf  = ev.get("pf")
+                pf = ev.get("pf")
                 sid_alloc_counts[sid] += 1
                 if pf == 1:
                     pf_alloc_counts[sid] += 1
@@ -137,7 +144,7 @@ def main():
     print("  sid 0..2 = LOAD adapters | sid 3 = STORE | sid 4 = CMO | sid 5 = HWPF")
     for sid in sorted(sid_alloc_counts):
         nalloc = sid_alloc_counts[sid]
-        npf    = pf_alloc_counts.get(sid, 0)
+        npf = pf_alloc_counts.get(sid, 0)
         label = ("LOAD" if 0 <= sid <= 2
                  else "STORE" if sid == 3
                  else "CMO" if sid == 4
@@ -157,8 +164,10 @@ def main():
           f"{'class':>14}  {'pc':>11}  events")
     print("-" * 100)
     for lat, r in sortable[:args.top]:
-        ident = r.get("id"); tid = r.get("trans_id")
-        fu = r.get("fu"); pc = r.get("pc") or "?"
+        ident = r.get("id")
+        tid = r.get("trans_id")
+        fu = r.get("fu")
+        pc = r.get("pc") or "?"
         cls = classify(r)
         ev_str = fmt_events(r.get("dc_events") or [])
         print(f"{ident:>5} {tid:>3} {fu:5} {lat:>4} "

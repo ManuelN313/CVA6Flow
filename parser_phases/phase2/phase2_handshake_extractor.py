@@ -358,7 +358,8 @@ def write_output_json(output_path, args, stats, records):
     with output_path.open("w") as f:
         f.write("{\n")
         f.write(f'  "metadata": {json.dumps(metadata, indent=2)},\n')
-        f.write(f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
+        f.write(
+            f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
         f.write(f'  "buffer_maxima": {json.dumps({})},\n')
         f.write('  "instructions": [\n')
         for i, rec in enumerate(records):
@@ -390,7 +391,8 @@ def report_missing(matches, path_to_id):
         if len(cands) > 5:
             print(f"      ... and {len(cands) - 5} more", file=sys.stderr)
         if not cands:
-            print(f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
+            print(
+                f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
     return [m["whitelist_path"] for m in missing]
 
 
@@ -425,7 +427,8 @@ def main():
         sys.exit(f"VCD file not found: {vcd_path}")
     args.vcd_path = vcd_path
 
-    out_path = Path(args.output) if args.output else vcd_path.with_suffix(".phase2.json")
+    out_path = Path(args.output) if args.output else vcd_path.with_suffix(
+        ".phase2.json")
 
     file_size = vcd_path.stat().st_size
     print(f"Opening {vcd_path} ({file_size / (1024 ** 3):.3f} GB)...")
@@ -433,7 +436,8 @@ def main():
 
     with vcd_path.open("r", errors="replace") as f:
         path_to_id, _id_to_path, timescale = parse_var_block(f)
-        print(f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
+        print(
+            f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
 
         matches = match_whitelist(WHITELIST, path_to_id, args.scope_prefix)
         missing_paths = report_missing(matches, path_to_id)
@@ -443,7 +447,8 @@ def main():
         if missing_required:
             print()
             for s in sorted(missing_required):
-                print(f"ERROR: required signal '{s}' not found.", file=sys.stderr)
+                print(
+                    f"ERROR: required signal '{s}' not found.", file=sys.stderr)
             print("Aborting — Phase 2 cannot proceed.", file=sys.stderr)
             return 2
 
@@ -465,7 +470,8 @@ def main():
     print("=" * 78)
     print(f" Input                 : {vcd_path}")
     print(f" Output                : {out_path}")
-    print(f" File size in          : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
+    print(
+        f" File size in          : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
     print(f" Lines processed       : {stats['n_lines']:>15,}")
     print(f" Value changes seen    : {stats['n_changes']:>15,}")
     print(f" Cycles seen (rising)  : {stats['n_cycles']:>15,}")
@@ -482,7 +488,8 @@ def main():
 
         print(f" Records with PC       : {n_with_pc:>15,} / {len(records)}")
         print(f" Compressed (RVC)      : {n_compressed:>15,} / {len(records)}")
-        print(f" fe_cycle span         : {first['fe_cycle']:,} → {last['fe_cycle']:,}")
+        print(
+            f" fe_cycle span         : {first['fe_cycle']:,} → {last['fe_cycle']:,}")
         print()
         print(f" First record          : id={first['id']}, pc={first['pc']}, "
               f"instr={first['instr_word']}, compressed={first['is_compressed']}")

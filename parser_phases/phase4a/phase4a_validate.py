@@ -30,7 +30,8 @@ def main(path: str) -> None:
     print(f"warmup_end_cycle:  {meta.get('warmup_end_cycle')}")
     print(f"total records:     {len(recs)}")
 
-    committed = [r for r in recs if not r.get("flushed") and r.get("co_cycle") is not None]
+    committed = [r for r in recs if not r.get(
+        "flushed") and r.get("co_cycle") is not None]
     flushed = [r for r in recs if r.get("flushed")]
     user = [r for r in committed if r.get("is_warmup") is False]
     print(f"committed:         {len(committed)}")
@@ -92,7 +93,8 @@ def main(path: str) -> None:
             n_unset_fu += 1
     print(f"stage ordering violations:  {n_order_viol}")
     print(f"ex != is + 1 violations:    {n_exis_viol}")
-    print(f"records with fu unset:      {n_unset_fu}  (expect 0 — flag for fallback)")
+    print(
+        f"records with fu unset:      {n_unset_fu}  (expect 0 — flag for fallback)")
 
 
 if __name__ == "__main__":

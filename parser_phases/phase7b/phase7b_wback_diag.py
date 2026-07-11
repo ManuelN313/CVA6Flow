@@ -35,17 +35,17 @@ from collections import defaultdict, deque
 
 # Resolved by hierarchical-path SUFFIX (config-identical across workloads).
 TARGETS = {
-    "alloc_valid" : (".i_hpdcache.flush_alloc",                       "scalar"),
-    "alloc_ready" : (".i_hpdcache.flush_alloc_ready",                 "scalar"),
-    "alloc_nline" : (".i_hpdcache.flush_alloc_nline",                 "vector"),
-    "send_valid"  : (".i_hpdcache.mem_req_write_flush_valid",         "scalar"),
-    "send_ready"  : (".i_hpdcache.mem_req_write_flush_ready",         "scalar"),
-    "send_id"     : (".i_hpdcache.mem_req_write_flush.mem_req_id",    "vector"),
-    "send_addr"   : (".i_hpdcache.mem_req_write_flush.mem_req_addr",  "vector"),
-    "ack_valid"   : (".i_hpdcache.mem_resp_write_flush_valid",        "scalar"),
-    "ack_ready"   : (".i_hpdcache.mem_resp_write_flush_ready",        "scalar"),
-    "ack_id"      : (".i_hpdcache.mem_resp_write_flush.mem_resp_w_id","vector"),
-    "ack_nline"   : (".i_hpdcache.flush_ack_nline",                   "vector"),
+    "alloc_valid": (".i_hpdcache.flush_alloc",                       "scalar"),
+    "alloc_ready": (".i_hpdcache.flush_alloc_ready",                 "scalar"),
+    "alloc_nline": (".i_hpdcache.flush_alloc_nline",                 "vector"),
+    "send_valid": (".i_hpdcache.mem_req_write_flush_valid",         "scalar"),
+    "send_ready": (".i_hpdcache.mem_req_write_flush_ready",         "scalar"),
+    "send_id": (".i_hpdcache.mem_req_write_flush.mem_req_id",    "vector"),
+    "send_addr": (".i_hpdcache.mem_req_write_flush.mem_req_addr",  "vector"),
+    "ack_valid": (".i_hpdcache.mem_resp_write_flush_valid",        "scalar"),
+    "ack_ready": (".i_hpdcache.mem_resp_write_flush_ready",        "scalar"),
+    "ack_id": (".i_hpdcache.mem_resp_write_flush.mem_resp_w_id", "vector"),
+    "ack_nline": (".i_hpdcache.flush_ack_nline",                   "vector"),
 }
 
 CLOCK_SUFFIX_PREFS = [".i_cva6.clk_i", ".i_ariane.clk_i",
@@ -89,7 +89,8 @@ def resolve(path_to_id):
         else:
             best = min(hits, key=len)
             roles[role] = path_to_id[best]
-            report.append(f"  AMBIG {role:<12} -> {best}  (+{len(hits)-1} others)")
+            report.append(
+                f"  AMBIG {role:<12} -> {best}  (+{len(hits)-1} others)")
     clk_id, clk_path = None, None
     for pref in CLOCK_SUFFIX_PREFS:
         hits = [p for p in path_to_id if p.endswith(pref)]
@@ -184,7 +185,8 @@ def stream(path, roles, clk_id, start_cycle):
                     stats["change_counts"][role] += 1
                     vs = stats["values_seen"][role]
                     if len(vs) < 8:
-                        vs.add(value if len(value) <= 14 else value[:11] + "...")
+                        vs.add(value if len(value) <=
+                               14 else value[:11] + "...")
 
     return allocs, sends, acks, stats
 
@@ -209,7 +211,8 @@ def main():
     if clk_id is None:
         sys.exit("\nFATAL: no clock resolved.")
 
-    allocs, sends, acks, stats = stream(args.vcd, roles, clk_id, args.start_cycle)
+    allocs, sends, acks, stats = stream(
+        args.vcd, roles, clk_id, args.start_cycle)
 
     print("\n=== WALK STATS ===")
     print(f"  rising edges      : {stats['rising_edges']}")
@@ -272,9 +275,11 @@ def main():
         ack_c = min(cand_ack) if cand_ack else None
         print(f"  [{i}] ALLOC cyc={ac} nline={fmt(anl)}")
         if ack_c is not None:
-            print(f"      ACK   cyc={ack_c}  (alloc->ack residency {ack_c-ac} cyc)")
+            print(
+                f"      ACK   cyc={ack_c}  (alloc->ack residency {ack_c-ac} cyc)")
         else:
-            print(f"      ACK   none found for nline={fmt(anl)} (still pending at EOT?)")
+            print(
+                f"      ACK   none found for nline={fmt(anl)} (still pending at EOT?)")
 
     print("\n# Done. Non-zero counts + send/ack pairing closing + a latency cluster "
           "validate the writeback path; then we wire the extractor.")

@@ -61,12 +61,12 @@ from pathlib import Path
 # each delivery as a hit (state_q == READ at fe2) or miss (state_q == MISS).
 # VCD encodes the 3-bit state as a binary string, e.g. "011" for MISS.
 
-FSM_FLUSH       = "000"
-FSM_IDLE        = "001"
-FSM_READ        = "010"
-FSM_MISS        = "011"
+FSM_FLUSH = "000"
+FSM_IDLE = "001"
+FSM_READ = "010"
+FSM_MISS = "011"
 FSM_KILL_ATRANS = "100"
-FSM_KILL_MISS   = "101"
+FSM_KILL_MISS = "101"
 
 
 # ============================================================================
@@ -131,6 +131,7 @@ CF_T_NAMES = {
     4: "Return",
 }
 
+
 def cf_name(s):
     """Decode a cf_t binary string. Returns 'NoCF' on None/unknown."""
     if s is None:
@@ -183,14 +184,14 @@ def cf_name(s):
 # (they're page-walk misses, not data-load misses) and would be
 # misattributed if a LOAD record's window happened to bracket them.
 
-HPDCACHE_NUM_PORTS  = 4
-LOAD_ADAPTER_SIDS   = frozenset(range(HPDCACHE_NUM_PORTS - 1))   # {0, 1, 2}
-PTW_LOAD_SID        = 0
-LOAD_UNIT_SID       = 1   # ← the only SID that flips dc_primary_miss on a LOAD record
-ACCEL_LOAD_SID      = 2
-STORE_ADAPTER_SID   = HPDCACHE_NUM_PORTS - 1                     # 3
-CMO_ADAPTER_SID     = HPDCACHE_NUM_PORTS                          # 4
-HWPF_ADAPTER_SID    = HPDCACHE_NUM_PORTS + 1                      # 5
+HPDCACHE_NUM_PORTS = 4
+LOAD_ADAPTER_SIDS = frozenset(range(HPDCACHE_NUM_PORTS - 1))   # {0, 1, 2}
+PTW_LOAD_SID = 0
+LOAD_UNIT_SID = 1   # ← the only SID that flips dc_primary_miss on a LOAD record
+ACCEL_LOAD_SID = 2
+STORE_ADAPTER_SID = HPDCACHE_NUM_PORTS - 1                     # 3
+CMO_ADAPTER_SID = HPDCACHE_NUM_PORTS                          # 4
+HWPF_ADAPTER_SID = HPDCACHE_NUM_PORTS + 1                      # 5
 
 # REFILL_FSM enum from hpdcache_miss_handler.sv. Verilator widens this
 # to 32 bits because the typedef has no explicit width — see line 397
@@ -388,39 +389,39 @@ WHITELIST = [
     # would be wrongly attributed to whichever LSU FSM is currently in
     # admit/non-IDLE state.
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_i",
+    "hpdcache_miss_handler_i.mshr_alloc_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_tid_i",
+    "hpdcache_miss_handler_i.mshr_alloc_tid_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_sid_i",
+    "hpdcache_miss_handler_i.mshr_alloc_sid_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_is_prefetch_i",
+    "hpdcache_miss_handler_i.mshr_alloc_is_prefetch_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_nline_i",
+    "hpdcache_miss_handler_i.mshr_alloc_nline_i",
     # mshr_check_i / mshr_check_hit_o capture the secondary-miss
     # path: when a request finds its nline already in an MSHR entry
     # (mshr_check_hit_o=1 on the same cycle mshr_check_i pulses),
     # the request coalesces. This is the dominant path for fdiv-style
     # workloads where loads follow stores to the same line.
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_check_i",
+    "hpdcache_miss_handler_i.mshr_check_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_check_nline_i",
+    "hpdcache_miss_handler_i.mshr_check_nline_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_check_hit_o",
+    "hpdcache_miss_handler_i.mshr_check_hit_o",
     # refill_fsm_q (any non-zero value = active refill) lets us flag
     # loads that overlap a refill cycle even when not directly
     # involved in alloc/coalesce — e.g., id=142 in fdiv was a hit
     # delayed by a refill consuming the cache port.
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_fsm_q",
+    "hpdcache_miss_handler_i.refill_fsm_q",
     # refill_core_rsp_valid_o pulses when refill data is delivered
     # back to the requesting core port. refill_core_rsp_o.tid carries
     # the requesting tid (see hpdcache_miss_handler.sv:382,397).
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_core_rsp_valid_o",
+    "hpdcache_miss_handler_i.refill_core_rsp_valid_o",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_core_rsp_o.tid",
+    "hpdcache_miss_handler_i.refill_core_rsp_o.tid",
 
     # Phase 7b: dirty victim WRITEBACK path. This config is WRITE-BACK
     # (wtEn=0, wbEn=1): the write buffer is configured out (gen_no_wbuf),
@@ -460,9 +461,9 @@ WHITELIST = [
     # Phase 6b group; adds the wback flag, the one-hot victim way, and the
     # flush-side one-hot way.
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_wback_i",
+    "hpdcache_miss_handler_i.mshr_alloc_wback_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_victim_way_i",
+    "hpdcache_miss_handler_i.mshr_alloc_victim_way_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache.flush_alloc_way",
 ]
 
@@ -492,7 +493,8 @@ PHASE3_POPULATES = {
     "trans_id", "flushed", "flush_reason",
 }
 
-PHASE4A_POPULATES = PHASE3_POPULATES | {"fu", "fu_category", "rs1", "rs2", "rd"}
+PHASE4A_POPULATES = PHASE3_POPULATES | {
+    "fu", "fu_category", "rs1", "rs2", "rd"}
 
 
 # ============================================================================
@@ -1078,10 +1080,11 @@ class PipelineTracker:
             return
 
         rec.bp_resolution_cycle = cycle
-        rec.bp_resolved_cf      = cf_name(cf_type_str)
-        rec.bp_resolved_target  = binary_to_int(target_str) if target_str else None
-        rec.bp_resolved_taken   = (is_taken_str == "1")
-        rec.bp_mispredict       = (is_mispredict_str == "1")
+        rec.bp_resolved_cf = cf_name(cf_type_str)
+        rec.bp_resolved_target = binary_to_int(
+            target_str) if target_str else None
+        rec.bp_resolved_taken = (is_taken_str == "1")
+        rec.bp_mispredict = (is_mispredict_str == "1")
 
     def on_lsu_fsm_sample(self, cycle, load_state_str, store_state_str,
                           lsu_ctrl_trans_id_str=None,
@@ -1362,9 +1365,9 @@ class PipelineTracker:
             self._dc_events.append({
                 "cycle": cycle,
                 "type":  "alloc",
-                "sid":   binary_to_int(msid)         if msid         else None,
-                "tid":   binary_to_int(mtid)         if mtid         else None,
-                "pf":    binary_to_int(mpf)          if mpf          else None,
+                "sid":   binary_to_int(msid) if msid else None,
+                "tid":   binary_to_int(mtid) if mtid else None,
+                "pf":    binary_to_int(mpf) if mpf else None,
                 "nline": binary_to_int(mnline_alloc) if mnline_alloc else None,
             })
 
@@ -1447,7 +1450,7 @@ class PipelineTracker:
             elif rec.fu == "STORE":
                 n_stores += 1
 
-            admit    = rec.lsu_admit_cycle
+            admit = rec.lsu_admit_cycle
             complete = rec.lsu_complete_cycle
             if admit is None or complete is None:
                 rec.dc_events = []
@@ -1457,7 +1460,7 @@ class PipelineTracker:
             # 1k–5k records × 100s of events each is fast enough.
             events_in_window = []
             primary_miss = False
-            coalesced    = False
+            coalesced = False
 
             for ev in evlog:
                 c = ev["cycle"]
@@ -1514,13 +1517,16 @@ class PipelineTracker:
             # dc_events populated on STOREs as context, but leave
             # all three booleans False.
             if rec.fu == "LOAD":
-                rec.dc_primary_miss   = primary_miss
-                rec.dc_coalesced      = coalesced
+                rec.dc_primary_miss = primary_miss
+                rec.dc_coalesced = coalesced
                 rec.dc_refill_overlap = refill_overlap
 
-                if primary_miss:   n_prim    += 1
-                if coalesced:      n_coal    += 1
-                if refill_overlap: n_overlap += 1
+                if primary_miss:
+                    n_prim += 1
+                if coalesced:
+                    n_coal += 1
+                if refill_overlap:
+                    n_overlap += 1
 
         return {
             "total_dc_events":       n_events,
@@ -1529,7 +1535,7 @@ class PipelineTracker:
             "n_stores":              n_stores,
             "n_primary_miss_loads":  n_prim,
             "n_coalesced_loads":     n_coal,
-            "n_refill_overlap_loads":n_overlap,
+            "n_refill_overlap_loads": n_overlap,
         }
 
     # -- Phase 7b: dirty victim writeback (flush/wback unit) ---------------
@@ -1593,7 +1599,7 @@ class PipelineTracker:
                     "axi_write_latency":   lat,
                     "residency":           None,
                     "way":                 None,   # victim way (one-hot->idx)
-                    "evict_incoming_nline":None,   # line X that displaced Y
+                    "evict_incoming_nline": None,   # line X that displaced Y
                     "evict_cycle":         None,
                     "linked":              False,
                 })
@@ -1622,7 +1628,8 @@ class PipelineTracker:
         SET_MASK = (1 << 8) - 1          # 256 sets -> setWidth 8
         WINDOW = 4
         n_linked = 0
-        ev_by_key = defaultdict(list)    # (set, way_oh) -> [(cycle, X_hex), ...]
+        # (set, way_oh) -> [(cycle, X_hex), ...]
+        ev_by_key = defaultdict(list)
         for ec, x_nline, vway_oh in self._wb_evicts:
             x_int = int(x_nline, 16) if x_nline else None
             s = None if x_int is None else (x_int & SET_MASK)
@@ -1979,7 +1986,7 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # handshake. Captured via pre-edge snapshot (pre_dbp_cf,
     # pre_dbp_tgt) to avoid the same advance-on-rising-edge issue
     # that affects fu/rs1/rs2/rd.
-    DBP_CF  = single_id.get(
+    DBP_CF = single_id.get(
         "issue_stage_i.i_scoreboard.decoded_instr_i[0].bp.cf")
     DBP_TGT = single_id.get(
         "issue_stage_i.i_scoreboard.decoded_instr_i[0].bp.predict_address")
@@ -2005,8 +2012,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     memq_resolved = 0
     for n in range(NR_SB):
         f_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.fu")
-        r1_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs1")
-        r2_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs2")
+        r1_vid = single_id.get(
+            f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs1")
+        r2_vid = single_id.get(
+            f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs2")
         rd_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rd")
         MEMQ_FU[n] = f_vid
         MEMQ_RS1[n] = r1_vid
@@ -2066,9 +2075,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # without adding a separate I$-scoped lookup.
     STATE_Q = single_id.get(
         "gen_cache_hpd.i_cache_subsystem.i_cva6_icache.state_q")
-    IC_VLD   = single_id.get("i_frontend.icache_dreq_i.valid")
+    IC_VLD = single_id.get("i_frontend.icache_dreq_i.valid")
     IC_VADDR = single_id.get("i_frontend.icache_dreq_i.vaddr")
-    IC_K2    = single_id.get("i_frontend.icache_dreq_o.kill_s2")
+    IC_K2 = single_id.get("i_frontend.icache_dreq_o.kill_s2")
     icache_resolved = all(s is not None
                           for s in (STATE_Q, IC_VLD, IC_VADDR, IC_K2))
     if not icache_resolved:
@@ -2087,7 +2096,7 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
               file=sys.stderr)
 
     # Phase 6a: LSU FSM state register lookups.
-    LOAD_STATE  = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
+    LOAD_STATE = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
     STORE_STATE = single_id.get("ex_stage_i.lsu_i.i_store_unit.state_q")
     # Phase 6a v0.4: lsu_ctrl.trans_id for FSM admission correlation.
     LSU_CTRL_TID = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.trans_id")
@@ -2104,17 +2113,17 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # write-through nbdcache.)
     _DC_BASE = ("gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
                 "hpdcache_miss_handler_i.")
-    DC_MALLO  = single_id.get(_DC_BASE + "mshr_alloc_i")
-    DC_MTID   = single_id.get(_DC_BASE + "mshr_alloc_tid_i")
-    DC_MSID   = single_id.get(_DC_BASE + "mshr_alloc_sid_i")
-    DC_MPF    = single_id.get(_DC_BASE + "mshr_alloc_is_prefetch_i")
+    DC_MALLO = single_id.get(_DC_BASE + "mshr_alloc_i")
+    DC_MTID = single_id.get(_DC_BASE + "mshr_alloc_tid_i")
+    DC_MSID = single_id.get(_DC_BASE + "mshr_alloc_sid_i")
+    DC_MPF = single_id.get(_DC_BASE + "mshr_alloc_is_prefetch_i")
     DC_MNLINE = single_id.get(_DC_BASE + "mshr_alloc_nline_i")
-    DC_MCHK   = single_id.get(_DC_BASE + "mshr_check_i")
-    DC_MCHKN  = single_id.get(_DC_BASE + "mshr_check_nline_i")
-    DC_MCHKH  = single_id.get(_DC_BASE + "mshr_check_hit_o")
-    DC_RFSM   = single_id.get(_DC_BASE + "refill_fsm_q")
-    DC_RRSP   = single_id.get(_DC_BASE + "refill_core_rsp_valid_o")
-    DC_RTID   = single_id.get(_DC_BASE + "refill_core_rsp_o.tid")
+    DC_MCHK = single_id.get(_DC_BASE + "mshr_check_i")
+    DC_MCHKN = single_id.get(_DC_BASE + "mshr_check_nline_i")
+    DC_MCHKH = single_id.get(_DC_BASE + "mshr_check_hit_o")
+    DC_RFSM = single_id.get(_DC_BASE + "refill_fsm_q")
+    DC_RRSP = single_id.get(_DC_BASE + "refill_core_rsp_valid_o")
+    DC_RTID = single_id.get(_DC_BASE + "refill_core_rsp_o.tid")
     dcache_resolved = all(s is not None for s in [
         DC_MALLO, DC_MTID, DC_MSID, DC_MPF, DC_MNLINE,
         DC_MCHK, DC_MCHKN, DC_MCHKH, DC_RFSM, DC_RRSP, DC_RTID,
@@ -2124,17 +2133,17 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # the i_hpdcache level. send/ack are the live flush channel; the wbuf
     # channel is dead in this WB config (gen_no_wbuf).
     _WB_BASE = "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-    WB_ALLOC_V  = single_id.get(_WB_BASE + "flush_alloc")
-    WB_ALLOC_R  = single_id.get(_WB_BASE + "flush_alloc_ready")
+    WB_ALLOC_V = single_id.get(_WB_BASE + "flush_alloc")
+    WB_ALLOC_R = single_id.get(_WB_BASE + "flush_alloc_ready")
     WB_ALLOC_NL = single_id.get(_WB_BASE + "flush_alloc_nline")
-    WB_SEND_V   = single_id.get(_WB_BASE + "mem_req_write_flush_valid")
-    WB_SEND_R   = single_id.get(_WB_BASE + "mem_req_write_flush_ready")
-    WB_SEND_ID  = single_id.get(_WB_BASE + "mem_req_write_flush.mem_req_id")
-    WB_SEND_AD  = single_id.get(_WB_BASE + "mem_req_write_flush.mem_req_addr")
-    WB_ACK_V    = single_id.get(_WB_BASE + "mem_resp_write_flush_valid")
-    WB_ACK_R    = single_id.get(_WB_BASE + "mem_resp_write_flush_ready")
-    WB_ACK_ID   = single_id.get(_WB_BASE + "mem_resp_write_flush.mem_resp_w_id")
-    WB_ACK_NL   = single_id.get(_WB_BASE + "flush_ack_nline")
+    WB_SEND_V = single_id.get(_WB_BASE + "mem_req_write_flush_valid")
+    WB_SEND_R = single_id.get(_WB_BASE + "mem_req_write_flush_ready")
+    WB_SEND_ID = single_id.get(_WB_BASE + "mem_req_write_flush.mem_req_id")
+    WB_SEND_AD = single_id.get(_WB_BASE + "mem_req_write_flush.mem_req_addr")
+    WB_ACK_V = single_id.get(_WB_BASE + "mem_resp_write_flush_valid")
+    WB_ACK_R = single_id.get(_WB_BASE + "mem_resp_write_flush_ready")
+    WB_ACK_ID = single_id.get(_WB_BASE + "mem_resp_write_flush.mem_resp_w_id")
+    WB_ACK_NL = single_id.get(_WB_BASE + "flush_ack_nline")
     wback_resolved = all(s is not None for s in [
         WB_ALLOC_V, WB_ALLOC_R, WB_ALLOC_NL,
         WB_SEND_V, WB_SEND_R, WB_SEND_ID, WB_SEND_AD,
@@ -2143,9 +2152,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # Phase 7b linkage: flush-side victim way + miss-handler eviction signals
     # (mshr_alloc_i / mshr_alloc_nline_i reused from the Phase 6b group as
     # DC_MALLO / DC_MNLINE).
-    WB_FWAY   = single_id.get(_WB_BASE + "flush_alloc_way")
-    EV_WBACK  = single_id.get(_DC_BASE + "mshr_alloc_wback_i")
-    EV_VWAY   = single_id.get(_DC_BASE + "mshr_alloc_victim_way_i")
+    WB_FWAY = single_id.get(_WB_BASE + "flush_alloc_way")
+    EV_WBACK = single_id.get(_DC_BASE + "mshr_alloc_wback_i")
+    EV_VWAY = single_id.get(_DC_BASE + "mshr_alloc_victim_way_i")
     link_resolved = all(s is not None for s in [
         WB_FWAY, EV_WBACK, EV_VWAY, DC_MALLO, DC_MNLINE,
     ])
@@ -2155,12 +2164,12 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # field pulses high for one cycle when branch_unit emits a
     # resolution; the rest carry the resolution payload.
     _RB = "issue_stage_i.i_scoreboard.resolved_branch_i."
-    RB_VLD   = single_id.get(_RB + "valid")
-    RB_PC    = single_id.get(_RB + "pc")
-    RB_TGT   = single_id.get(_RB + "target_address")
-    RB_TKN   = single_id.get(_RB + "is_taken")
-    RB_MISP  = single_id.get(_RB + "is_mispredict")
-    RB_CFT   = single_id.get(_RB + "cf_type")
+    RB_VLD = single_id.get(_RB + "valid")
+    RB_PC = single_id.get(_RB + "pc")
+    RB_TGT = single_id.get(_RB + "target_address")
+    RB_TKN = single_id.get(_RB + "is_taken")
+    RB_MISP = single_id.get(_RB + "is_mispredict")
+    RB_CFT = single_id.get(_RB + "cf_type")
     bp_resolved = all(s is not None for s in
                       [RB_VLD, RB_PC, RB_TGT, RB_TKN, RB_MISP, RB_CFT])
     if not bp_resolved:
@@ -2183,16 +2192,21 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
 
     if not lsu_resolved:
         missing = []
-        if LOAD_STATE is None:  missing.append("i_load_unit.state_q")
-        if STORE_STATE is None: missing.append("i_store_unit.state_q")
+        if LOAD_STATE is None:
+            missing.append("i_load_unit.state_q")
+        if STORE_STATE is None:
+            missing.append("i_store_unit.state_q")
         print("WARNING: Phase 6a LSU signals not all resolved — "
               "lsu_state_history will be left as None on every record. "
               "Missing: " + ", ".join(missing), file=sys.stderr)
     else:
         extras = []
-        if not LSU_CTRL_TID: extras.append("lsu_ctrl.trans_id")
-        if not POP_LD: extras.append("pop_ld")
-        if not POP_ST: extras.append("pop_st")
+        if not LSU_CTRL_TID:
+            extras.append("lsu_ctrl.trans_id")
+        if not POP_LD:
+            extras.append("pop_ld")
+        if not POP_ST:
+            extras.append("pop_st")
         extras_msg = ("" if not extras
                       else f" — degraded (missing: {', '.join(extras)})")
         print("Phase 6a LSU FSM tracking enabled "
@@ -2320,15 +2334,18 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ca_bus = state.get(CA, "0")
             for port in range(n_commit_ports):
                 if get_bit(ca_bus, port) == 1:
-                    ptr_id = CPTR_PORTS[port] if port < len(CPTR_PORTS) else None
+                    ptr_id = CPTR_PORTS[port] if port < len(
+                        CPTR_PORTS) else None
                     if ptr_id is not None:
                         tid = binary_to_int(state.get(ptr_id))
                         if tid is not None:
                             mq_fu = mq_rs1 = mq_rs2 = mq_rd = None
                             if MEMQ_AVAILABLE and 0 <= tid < NR_SB:
                                 mq_fu = binary_to_int(state.get(MEMQ_FU[tid]))
-                                mq_rs1 = binary_to_int(state.get(MEMQ_RS1[tid]))
-                                mq_rs2 = binary_to_int(state.get(MEMQ_RS2[tid]))
+                                mq_rs1 = binary_to_int(
+                                    state.get(MEMQ_RS1[tid]))
+                                mq_rs2 = binary_to_int(
+                                    state.get(MEMQ_RS2[tid]))
                                 mq_rd = binary_to_int(state.get(MEMQ_RD[tid]))
                             tracker.on_commit(cycle, port, tid,
                                               mq_fu, mq_rs1, mq_rs2, mq_rd)
@@ -2345,8 +2362,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                             mq_fu = mq_rs1 = mq_rs2 = mq_rd = None
                             if MEMQ_AVAILABLE and 0 <= tid < NR_SB:
                                 mq_fu = binary_to_int(state.get(MEMQ_FU[tid]))
-                                mq_rs1 = binary_to_int(state.get(MEMQ_RS1[tid]))
-                                mq_rs2 = binary_to_int(state.get(MEMQ_RS2[tid]))
+                                mq_rs1 = binary_to_int(
+                                    state.get(MEMQ_RS1[tid]))
+                                mq_rs2 = binary_to_int(
+                                    state.get(MEMQ_RS2[tid]))
                                 mq_rd = binary_to_int(state.get(MEMQ_RD[tid]))
                             tracker.on_writeback(cycle, port, tid,
                                                  mq_fu, mq_rs1, mq_rs2, mq_rd)
@@ -2603,8 +2622,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # entry. Records where pending was set but no transition ever
     # fired (FSM didn't move while the record was pending — extremely
     # rare; only if a flush happened immediately) end up untraced.
-    n_load_traced = 0; n_load_untraced = 0
-    n_store_traced = 0; n_store_untraced = 0
+    n_load_traced = 0
+    n_load_untraced = 0
+    n_store_traced = 0
+    n_store_untraced = 0
     for rec in tracker.completed:
         if rec.fu == "LOAD":
             if rec.lsu_state_history:
@@ -2891,7 +2912,8 @@ def write_output_json(output_path, args, stats, tracker):
     with output_path.open("w") as f:
         f.write("{\n")
         f.write(f'  "metadata": {json.dumps(metadata, indent=2)},\n')
-        f.write(f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
+        f.write(
+            f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
         f.write(f'  "buffer_maxima": {json.dumps({})},\n')
         f.write('  "instructions": [\n')
         recs = tracker.completed
@@ -2924,7 +2946,8 @@ def report_missing(matches, path_to_id):
     print("Missing whitelist entries:", file=sys.stderr)
     for m in missing:
         last_seg = m["whitelist_path"].rsplit(".", 1)[-1]
-        last_seg = last_seg.split("[")[0]   # drop array index suffix for search
+        # drop array index suffix for search
+        last_seg = last_seg.split("[")[0]
         print(f"  - {m['whitelist_path']}", file=sys.stderr)
         cands = [p for p in path_to_id if last_seg in p]
         for c in cands[:5]:
@@ -2932,7 +2955,8 @@ def report_missing(matches, path_to_id):
         if len(cands) > 5:
             print(f"      ... and {len(cands) - 5} more", file=sys.stderr)
         if not cands:
-            print(f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
+            print(
+                f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
     return [m["whitelist_path"] for m in missing]
 
 
@@ -2975,7 +2999,8 @@ def main():
         sys.exit(f"VCD file not found: {vcd_path}")
     args.vcd_path = vcd_path
 
-    out_path = Path(args.output) if args.output else vcd_path.with_suffix(".phase3.json")
+    out_path = Path(args.output) if args.output else vcd_path.with_suffix(
+        ".phase3.json")
 
     n_wb_ports = CV64A6_HPDC_WB_DEFAULTS["NrWbPorts"]
     n_commit_ports = CV64A6_HPDC_WB_DEFAULTS["NrCommitPorts"]
@@ -2988,7 +3013,8 @@ def main():
 
     with vcd_path.open("r", errors="replace") as f:
         path_to_id, _id_to_path, timescale = parse_var_block(f)
-        print(f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
+        print(
+            f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
 
         matches = match_whitelist(WHITELIST, path_to_id, args.scope_prefix)
         missing_paths = report_missing(matches, path_to_id)
@@ -2998,7 +3024,8 @@ def main():
         if missing_required:
             print()
             for s in sorted(missing_required):
-                print(f"ERROR: required signal '{s}' not found.", file=sys.stderr)
+                print(
+                    f"ERROR: required signal '{s}' not found.", file=sys.stderr)
             print("Aborting — Phase 3 cannot proceed.", file=sys.stderr)
             return 2
 
@@ -3052,7 +3079,8 @@ def main():
     print("=" * 78)
     print(f" Input                 : {vcd_path}")
     print(f" Output                : {out_path}")
-    print(f" File size             : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
+    print(
+        f" File size             : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
     print(f" Lines processed       : {stats['n_lines']:>15,}")
     print(f" Value changes seen    : {stats['n_changes']:>15,}")
     print(f" Cycles seen (rising)  : {stats['n_cycles']:>15,}")
@@ -3083,13 +3111,16 @@ def main():
     if args.disasm_list:
         print()
         print(f" Disassembly listing   : {args.disasm_list}")
-        print(f"   annotated records   : {stats.get('disasm_annotated', 0):>15,}")
-        print(f"   unmapped (no entry) : {stats.get('disasm_unmapped', 0):>15,}")
+        print(
+            f"   annotated records   : {stats.get('disasm_annotated', 0):>15,}")
+        print(
+            f"   unmapped (no entry) : {stats.get('disasm_unmapped', 0):>15,}")
         if stats.get('disasm_no_pc', 0):
             print(f"   without PC          : {stats['disasm_no_pc']:>15,}")
 
     if n_total:
-        first_user = next((r for r in tracker.completed if not r.is_warmup), None)
+        first_user = next(
+            (r for r in tracker.completed if not r.is_warmup), None)
         if first_user:
             print()
             print(f" First user-code record:")
@@ -3102,7 +3133,8 @@ def main():
             print(f"   fe={first_user.fe_cycle}  id={first_user.id_cycle}  "
                   f"is={first_user.is_cycle}  ex={first_user.ex_cycle}  "
                   f"wb={first_user.wb_cycle}  co={first_user.co_cycle}")
-            print(f"   trans_id={first_user.trans_id}, flushed={first_user.flushed}")
+            print(
+                f"   trans_id={first_user.trans_id}, flushed={first_user.flushed}")
 
         # FU / FU-category distribution over committed records.
         from collections import Counter as _Counter

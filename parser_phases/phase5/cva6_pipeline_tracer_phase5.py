@@ -61,12 +61,12 @@ from pathlib import Path
 # each delivery as a hit (state_q == READ at fe2) or miss (state_q == MISS).
 # VCD encodes the 3-bit state as a binary string, e.g. "011" for MISS.
 
-FSM_FLUSH       = "000"
-FSM_IDLE        = "001"
-FSM_READ        = "010"
-FSM_MISS        = "011"
+FSM_FLUSH = "000"
+FSM_IDLE = "001"
+FSM_READ = "010"
+FSM_MISS = "011"
 FSM_KILL_ATRANS = "100"
-FSM_KILL_MISS   = "101"
+FSM_KILL_MISS = "101"
 
 
 # ============================================================================
@@ -212,7 +212,8 @@ PHASE3_POPULATES = {
     "trans_id", "flushed", "flush_reason",
 }
 
-PHASE4A_POPULATES = PHASE3_POPULATES | {"fu", "fu_category", "rs1", "rs2", "rd"}
+PHASE4A_POPULATES = PHASE3_POPULATES | {
+    "fu", "fu_category", "rs1", "rs2", "rd"}
 
 
 # ============================================================================
@@ -885,8 +886,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     memq_resolved = 0
     for n in range(NR_SB):
         f_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.fu")
-        r1_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs1")
-        r2_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs2")
+        r1_vid = single_id.get(
+            f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs1")
+        r2_vid = single_id.get(
+            f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rs2")
         rd_vid = single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rd")
         MEMQ_FU[n] = f_vid
         MEMQ_RS1[n] = r1_vid
@@ -930,9 +933,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     # without adding a separate I$-scoped lookup.
     STATE_Q = single_id.get(
         "gen_cache_hpd.i_cache_subsystem.i_cva6_icache.state_q")
-    IC_VLD   = single_id.get("i_frontend.icache_dreq_i.valid")
+    IC_VLD = single_id.get("i_frontend.icache_dreq_i.valid")
     IC_VADDR = single_id.get("i_frontend.icache_dreq_i.vaddr")
-    IC_K2    = single_id.get("i_frontend.icache_dreq_o.kill_s2")
+    IC_K2 = single_id.get("i_frontend.icache_dreq_o.kill_s2")
     icache_resolved = all(s is not None
                           for s in (STATE_Q, IC_VLD, IC_VADDR, IC_K2))
     if not icache_resolved:
@@ -999,15 +1002,18 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ca_bus = state.get(CA, "0")
             for port in range(n_commit_ports):
                 if get_bit(ca_bus, port) == 1:
-                    ptr_id = CPTR_PORTS[port] if port < len(CPTR_PORTS) else None
+                    ptr_id = CPTR_PORTS[port] if port < len(
+                        CPTR_PORTS) else None
                     if ptr_id is not None:
                         tid = binary_to_int(state.get(ptr_id))
                         if tid is not None:
                             mq_fu = mq_rs1 = mq_rs2 = mq_rd = None
                             if MEMQ_AVAILABLE and 0 <= tid < NR_SB:
                                 mq_fu = binary_to_int(state.get(MEMQ_FU[tid]))
-                                mq_rs1 = binary_to_int(state.get(MEMQ_RS1[tid]))
-                                mq_rs2 = binary_to_int(state.get(MEMQ_RS2[tid]))
+                                mq_rs1 = binary_to_int(
+                                    state.get(MEMQ_RS1[tid]))
+                                mq_rs2 = binary_to_int(
+                                    state.get(MEMQ_RS2[tid]))
                                 mq_rd = binary_to_int(state.get(MEMQ_RD[tid]))
                             tracker.on_commit(cycle, port, tid,
                                               mq_fu, mq_rs1, mq_rs2, mq_rd)
@@ -1024,8 +1030,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                             mq_fu = mq_rs1 = mq_rs2 = mq_rd = None
                             if MEMQ_AVAILABLE and 0 <= tid < NR_SB:
                                 mq_fu = binary_to_int(state.get(MEMQ_FU[tid]))
-                                mq_rs1 = binary_to_int(state.get(MEMQ_RS1[tid]))
-                                mq_rs2 = binary_to_int(state.get(MEMQ_RS2[tid]))
+                                mq_rs1 = binary_to_int(
+                                    state.get(MEMQ_RS1[tid]))
+                                mq_rs2 = binary_to_int(
+                                    state.get(MEMQ_RS2[tid]))
                                 mq_rd = binary_to_int(state.get(MEMQ_RD[tid]))
                             tracker.on_writeback(cycle, port, tid,
                                                  mq_fu, mq_rs1, mq_rs2, mq_rd)
@@ -1333,7 +1341,8 @@ def write_output_json(output_path, args, stats, tracker):
     with output_path.open("w") as f:
         f.write("{\n")
         f.write(f'  "metadata": {json.dumps(metadata, indent=2)},\n')
-        f.write(f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
+        f.write(
+            f'  "config_params": {json.dumps(CV64A6_HPDC_WB_DEFAULTS, indent=2)},\n')
         f.write(f'  "buffer_maxima": {json.dumps({})},\n')
         f.write('  "instructions": [\n')
         recs = tracker.completed
@@ -1357,7 +1366,8 @@ def report_missing(matches, path_to_id):
     print("Missing whitelist entries:", file=sys.stderr)
     for m in missing:
         last_seg = m["whitelist_path"].rsplit(".", 1)[-1]
-        last_seg = last_seg.split("[")[0]   # drop array index suffix for search
+        # drop array index suffix for search
+        last_seg = last_seg.split("[")[0]
         print(f"  - {m['whitelist_path']}", file=sys.stderr)
         cands = [p for p in path_to_id if last_seg in p]
         for c in cands[:5]:
@@ -1365,7 +1375,8 @@ def report_missing(matches, path_to_id):
         if len(cands) > 5:
             print(f"      ... and {len(cands) - 5} more", file=sys.stderr)
         if not cands:
-            print(f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
+            print(
+                f"      (no VCD path contains '{last_seg}')", file=sys.stderr)
     return [m["whitelist_path"] for m in missing]
 
 
@@ -1408,7 +1419,8 @@ def main():
         sys.exit(f"VCD file not found: {vcd_path}")
     args.vcd_path = vcd_path
 
-    out_path = Path(args.output) if args.output else vcd_path.with_suffix(".phase3.json")
+    out_path = Path(args.output) if args.output else vcd_path.with_suffix(
+        ".phase3.json")
 
     n_wb_ports = CV64A6_HPDC_WB_DEFAULTS["NrWbPorts"]
     n_commit_ports = CV64A6_HPDC_WB_DEFAULTS["NrCommitPorts"]
@@ -1421,7 +1433,8 @@ def main():
 
     with vcd_path.open("r", errors="replace") as f:
         path_to_id, _id_to_path, timescale = parse_var_block(f)
-        print(f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
+        print(
+            f"Header parsed: {len(path_to_id):,} signals, timescale={timescale}")
 
         matches = match_whitelist(WHITELIST, path_to_id, args.scope_prefix)
         missing_paths = report_missing(matches, path_to_id)
@@ -1431,7 +1444,8 @@ def main():
         if missing_required:
             print()
             for s in sorted(missing_required):
-                print(f"ERROR: required signal '{s}' not found.", file=sys.stderr)
+                print(
+                    f"ERROR: required signal '{s}' not found.", file=sys.stderr)
             print("Aborting — Phase 3 cannot proceed.", file=sys.stderr)
             return 2
 
@@ -1485,7 +1499,8 @@ def main():
     print("=" * 78)
     print(f" Input                 : {vcd_path}")
     print(f" Output                : {out_path}")
-    print(f" File size             : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
+    print(
+        f" File size             : {file_size:>15,} bytes ({file_size / (1024**3):.3f} GB)")
     print(f" Lines processed       : {stats['n_lines']:>15,}")
     print(f" Value changes seen    : {stats['n_changes']:>15,}")
     print(f" Cycles seen (rising)  : {stats['n_cycles']:>15,}")
@@ -1516,13 +1531,16 @@ def main():
     if args.disasm_list:
         print()
         print(f" Disassembly listing   : {args.disasm_list}")
-        print(f"   annotated records   : {stats.get('disasm_annotated', 0):>15,}")
-        print(f"   unmapped (no entry) : {stats.get('disasm_unmapped', 0):>15,}")
+        print(
+            f"   annotated records   : {stats.get('disasm_annotated', 0):>15,}")
+        print(
+            f"   unmapped (no entry) : {stats.get('disasm_unmapped', 0):>15,}")
         if stats.get('disasm_no_pc', 0):
             print(f"   without PC          : {stats['disasm_no_pc']:>15,}")
 
     if n_total:
-        first_user = next((r for r in tracker.completed if not r.is_warmup), None)
+        first_user = next(
+            (r for r in tracker.completed if not r.is_warmup), None)
         if first_user:
             print()
             print(f" First user-code record:")
@@ -1535,7 +1553,8 @@ def main():
             print(f"   fe={first_user.fe_cycle}  id={first_user.id_cycle}  "
                   f"is={first_user.is_cycle}  ex={first_user.ex_cycle}  "
                   f"wb={first_user.wb_cycle}  co={first_user.co_cycle}")
-            print(f"   trans_id={first_user.trans_id}, flushed={first_user.flushed}")
+            print(
+                f"   trans_id={first_user.trans_id}, flushed={first_user.flushed}")
 
         # FU / FU-category distribution over committed records.
         from collections import Counter as _Counter

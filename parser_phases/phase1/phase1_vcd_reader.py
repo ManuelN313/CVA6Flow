@@ -281,7 +281,8 @@ def print_report(args, path_to_id, matches, counts, total_lines, total_changes,
     print("-" * 78)
     print(" Whitelist coverage")
     print("-" * 78)
-    print(f" Found    : {len(found):>3} / {len(matches)} whitelisted signal groups")
+    print(
+        f" Found    : {len(found):>3} / {len(matches)} whitelisted signal groups")
     print(f" Missing  : {len(missing):>3}")
 
     if missing:

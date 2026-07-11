@@ -43,7 +43,12 @@ JSON schema (per instruction):
   iq_stall_cycles, redir_start, redir_end, wbuf_full_at_commit,
   flushed
 """
-import argparse, json, os, re, sys, time
+import argparse
+import json
+import os
+import re
+import sys
+import time
 from collections import OrderedDict, defaultdict
 
 # ═══════════════════════════════════════════════════════════════════════════
@@ -51,57 +56,61 @@ from collections import OrderedDict, defaultdict
 # Signal NAMES are stable across configs; if IDs differ, scan the header.
 # ═══════════════════════════════════════════════════════════════════════════
 IDMAP = {
-    '__#' : 'clk',
+    '__#': 'clk',
     # --- Fetch/IQ (instr_queue <-> id_stage) ---
-    'aF"' : 'fetch_valid',
-    '!7"' : 'fetch_ready',
-    'PB'  : 'fetch_addr',
-    'RB'  : 'fetch_instr',
+    'aF"': 'fetch_valid',
+    '!7"': 'fetch_ready',
+    'PB': 'fetch_addr',
+    'RB': 'fetch_instr',
     # --- icache dreq ---
-    'z_#' : 'dreq_req',
-    'fC'  : 'dreq_vld',
-    'eC'  : 'dreq_rdy',
-    '~_#' : 'dreq_vaddr',
+    'z_#': 'dreq_req',
+    'fC': 'dreq_vld',
+    'eC': 'dreq_rdy',
+    '~_#': 'dreq_vaddr',
     # --- ic-miss 5-phase FSM ---
-    'HC!' : 'ic_miss',
-    '})"' : 'dram_ar_ready',
-    '?*"' : 'dram_r_ready',
-    'LC!' : 'ic_wren',
-    'KC!' : 'ic_rden',
-    'Hz!' : 'ic_ar_ready',
-    'Oz!' : 'ic_r_valid',
-    'Tw"' : 'ic_fill',
+    'HC!': 'ic_miss',
+    '})"': 'dram_ar_ready',
+    '?*"': 'dram_r_ready',
+    'LC!': 'ic_wren',
+    'KC!': 'ic_rden',
+    'Hz!': 'ic_ar_ready',
+    'Oz!': 'ic_r_valid',
+    'Tw"': 'ic_fill',
     # --- Issue / Commit ---
-    ']5#' : 'issue_pointer_q',
-    'Mv'  : 'commit_ack',
-    'OH"' : 'commit_ptr0',
-    'PH"' : 'commit_ptr1',
-    'Fi#' : 'wbuf_not_ni',
+    ']5#': 'issue_pointer_q',
+    'Mv': 'commit_ack',
+    'OH"': 'commit_ptr0',
+    'PH"': 'commit_ptr1',
+    'Fi#': 'wbuf_not_ni',
     # --- FU dispatch pulses ---
-    '<G"' : 'alu_valid_i',
-    '?G"' : 'branch_valid_i',
-    '[G"' : 'csr_valid_i',
-    'VG"' : 'mult_valid_i',
-    'DG"' : 'lsu_valid_i',
-    'WG"' : 'fpu_valid_i',
+    '<G"': 'alu_valid_i',
+    '?G"': 'branch_valid_i',
+    '[G"': 'csr_valid_i',
+    'VG"': 'mult_valid_i',
+    'DG"': 'lsu_valid_i',
+    'WG"': 'fpu_valid_i',
     # --- Branch resolution ---
-    'WF"' : 'br_valid',
+    'WF"': 'br_valid',
     '\\F"': 'br_mispredict',
     # --- Flush / PC override ---
-    'e*!' : 'flush_if',
-    'f*!' : 'flush_id',
-    'b*!' : 'set_pc_commit',
+    'e*!': 'flush_if',
+    'f*!': 'flush_id',
+    'b*!': 'set_pc_commit',
 }
 # Scoreboard per-slot signals
-SLOT_ISSUED = ['\\2#','!3#','D3#','g3#',',4#','O4#','r4#','75#']
-SLOT_SBEVLD = ['i2#','.3#','Q3#','t3#','94#','\\4#','!5#','D5#']
-SLOT_PC     = ['_2#','$3#','G3#','j3#','/4#','R4#','u4#',':5#']
-SLOT_EXVLD  = ['u2#',':3#',']3#','"4#','E4#','h4#','-5#','P5#']
+SLOT_ISSUED = ['\\2#', '!3#', 'D3#', 'g3#', ',4#', 'O4#', 'r4#', '75#']
+SLOT_SBEVLD = ['i2#', '.3#', 'Q3#', 't3#', '94#', '\\4#', '!5#', 'D5#']
+SLOT_PC = ['_2#', '$3#', 'G3#', 'j3#', '/4#', 'R4#', 'u4#', ':5#']
+SLOT_EXVLD = ['u2#', ':3#', ']3#', '"4#', 'E4#', 'h4#', '-5#', 'P5#']
 
-for i, vid in enumerate(SLOT_ISSUED): IDMAP[vid] = f'slot{i}_issued'
-for i, vid in enumerate(SLOT_SBEVLD): IDMAP[vid] = f'slot{i}_sbevld'
-for i, vid in enumerate(SLOT_PC):     IDMAP[vid] = f'slot{i}_pc'
-for i, vid in enumerate(SLOT_EXVLD):  IDMAP[vid] = f'slot{i}_exvld'
+for i, vid in enumerate(SLOT_ISSUED):
+    IDMAP[vid] = f'slot{i}_issued'
+for i, vid in enumerate(SLOT_SBEVLD):
+    IDMAP[vid] = f'slot{i}_sbevld'
+for i, vid in enumerate(SLOT_PC):
+    IDMAP[vid] = f'slot{i}_pc'
+for i, vid in enumerate(SLOT_EXVLD):
+    IDMAP[vid] = f'slot{i}_exvld'
 
 INTERESTING = set(IDMAP.keys())
 
@@ -118,8 +127,8 @@ BIT_SIGS = set(SLOT_ISSUED + SLOT_SBEVLD + SLOT_EXVLD) | {
 # needed.  The extraction is not sensitive to an over-estimate here (groups
 # more instructions under one ticket = more first-consumer gating) but an
 # under-estimate would create false companions.
-LINE_BYTES   = 16
-LINE_MASK    = ~(LINE_BYTES - 1) & ((1 << 64) - 1)
+LINE_BYTES = 16
+LINE_MASK = ~(LINE_BYTES - 1) & ((1 << 64) - 1)
 RECENT_FILLS_N = 16
 
 
@@ -127,22 +136,27 @@ RECENT_FILLS_N = 16
 # Helpers
 # ═══════════════════════════════════════════════════════════════════════════
 def bval(s, default=0):
-    if s is None: return default
-    if any(c in s for c in 'xzXZ'): return default
-    try: return int(s, 2)
-    except Exception: return default
+    if s is None:
+        return default
+    if any(c in s for c in 'xzXZ'):
+        return default
+    try:
+        return int(s, 2)
+    except Exception:
+        return default
 
 
 def parse_listing(path):
     info = {}
-    if not path or not os.path.exists(path): return info
+    if not path or not os.path.exists(path):
+        return info
     with open(path, 'r', errors='replace') as f:
         for line in f:
             m = re.match(r'\s+([0-9a-f]+):\s+([0-9a-f]+)\s+(.+)', line)
             if m:
                 pc = int(m.group(1), 16)
                 info[pc] = {
-                    'mn'  : re.sub(r'\s+', ' ', m.group(3)).strip(),
+                    'mn': re.sub(r'\s+', ' ', m.group(3)).strip(),
                     'size': len(m.group(2)) // 2,
                 }
     return info
@@ -150,23 +164,23 @@ def parse_listing(path):
 
 def fu_from_mnemonic(mn):
     w = (mn.split()[0] if mn else '').lower()
-    if w in ('lb','lh','lw','ld','lbu','lhu','lwu','flw','fld',
-             'c.ld','c.lw','c.ldsp','c.lwsp','c.flw','c.fld','c.fldsp'):
+    if w in ('lb', 'lh', 'lw', 'ld', 'lbu', 'lhu', 'lwu', 'flw', 'fld',
+             'c.ld', 'c.lw', 'c.ldsp', 'c.lwsp', 'c.flw', 'c.fld', 'c.fldsp'):
         return 'LOAD'
-    if w in ('sb','sh','sw','sd','fsw','fsd',
-             'c.sd','c.sw','c.sdsp','c.swsp','c.fsw','c.fsd','c.fsdsp'):
+    if w in ('sb', 'sh', 'sw', 'sd', 'fsw', 'fsd',
+             'c.sd', 'c.sw', 'c.sdsp', 'c.swsp', 'c.fsw', 'c.fsd', 'c.fsdsp'):
         return 'STORE'
-    if w in ('beq','bne','blt','bge','bltu','bgeu',
-             'beqz','bnez','blez','bgez','bgtz','bltz',
-             'jal','jalr','j','jr','ret','call','tail',
-             'c.beqz','c.bnez','c.j','c.jr','c.jal','c.jalr'):
+    if w in ('beq', 'bne', 'blt', 'bge', 'bltu', 'bgeu',
+             'beqz', 'bnez', 'blez', 'bgez', 'bgtz', 'bltz',
+             'jal', 'jalr', 'j', 'jr', 'ret', 'call', 'tail',
+             'c.beqz', 'c.bnez', 'c.j', 'c.jr', 'c.jal', 'c.jalr'):
         return 'CTRL'
-    if w in ('csrrw','csrrs','csrrc','csrrwi','csrrsi','csrrci',
-             'csrr','csrw','csrs','csrc','fence','fence.i','sfence.vma',
-             'ecall','ebreak','mret','sret','dret','wfi'):
+    if w in ('csrrw', 'csrrs', 'csrrc', 'csrrwi', 'csrrsi', 'csrrci',
+             'csrr', 'csrw', 'csrs', 'csrc', 'fence', 'fence.i', 'sfence.vma',
+             'ecall', 'ebreak', 'mret', 'sret', 'dret', 'wfi'):
         return 'CSR'
-    if w in ('mul','mulh','mulhsu','mulhu','div','divu','rem','remu',
-             'mulw','divw','divuw','remw','remuw'):
+    if w in ('mul', 'mulh', 'mulhsu', 'mulhu', 'div', 'divu', 'rem', 'remu',
+             'mulw', 'divw', 'divuw', 'remw', 'remuw'):
         return 'MULT'
     if w.startswith('fdiv') or w.startswith('fsqrt'):
         return 'FDIVSQRT'
@@ -181,7 +195,7 @@ def fu_from_mnemonic(mn):
 def extract(vcd_path, list_path=None, verbose=True):
     listing = parse_listing(list_path) if list_path else {}
 
-    cur_1b  = {v: '0' for v in BIT_SIGS}
+    cur_1b = {v: '0' for v in BIT_SIGS}
     prev_1b = dict(cur_1b)
     cur_vec = {v: '0' for v in IDMAP if v not in BIT_SIGS}
 
@@ -206,7 +220,7 @@ def extract(vcd_path, list_path=None, verbose=True):
 
     # --- Statistics ---
     issue_edge_count = 0
-    wb_edge_count    = 0
+    wb_edge_count = 0
     commit_event_count = 0
 
     # --- Redirect tracking ---
@@ -228,14 +242,20 @@ def extract(vcd_path, list_path=None, verbose=True):
             line = line.rstrip('\n')
 
             if header:
-                if line.startswith('#'): header = False
-                else: continue
+                if line.startswith('#'):
+                    header = False
+                else:
+                    continue
 
             if line.startswith('#'):
-                try: t = int(line[1:])
-                except Exception: continue
-                if T0 is None: T0 = t
-                if (t - T0) % 2 != 0: continue
+                try:
+                    t = int(line[1:])
+                except Exception:
+                    continue
+                if T0 is None:
+                    T0 = t
+                if (t - T0) % 2 != 0:
+                    continue
                 c = (t - T0) // 2
                 cycles = c
 
@@ -261,7 +281,8 @@ def extract(vcd_path, list_path=None, verbose=True):
                         issue_edge_count += 1
                         pc_bin = cur_vec.get(SLOT_PC[n], '0')
                         pc = bval(pc_bin)
-                        if pc == 0: continue
+                        if pc == 0:
+                            continue
                         li = listing.get(pc)
                         mn = li['mn'] if li else '?'
                         size = li['size'] if li else 4
@@ -320,14 +341,15 @@ def extract(vcd_path, list_path=None, verbose=True):
                             inst['wb_cycle'] = c
 
                 # ───────────────── 3) FU dispatch pulses ─────────────────
-                for sig, fus in [('<G"',('ALU',)), ('?G"',('CTRL',)),
-                                 ('[G"',('CSR',)), ('VG"',('MULT',)),
-                                 ('DG"',('LOAD','STORE')),
-                                 ('WG"',('FPU','FDIVSQRT'))]:
+                for sig, fus in [('<G"', ('ALU',)), ('?G"', ('CTRL',)),
+                                 ('[G"', ('CSR',)), ('VG"', ('MULT',)),
+                                 ('DG"', ('LOAD', 'STORE')),
+                                 ('WG"', ('FPU', 'FDIVSQRT'))]:
                     if cur_1b[sig] == '1':
                         for n in range(8):
                             inst = slot_live[n]
-                            if inst is None: continue
+                            if inst is None:
+                                continue
                             if inst['fu'] in fus and inst['fu_valid_cycle'] is None:
                                 inst['fu_valid_cycle'] = c
                                 break
@@ -337,16 +359,20 @@ def extract(vcd_path, list_path=None, verbose=True):
                 cack = bval(cack_bin)
                 if cack:
                     for i, has in enumerate([(cack & 1) != 0, (cack & 2) != 0]):
-                        if not has: continue
+                        if not has:
+                            continue
                         pptr_bin = cur_vec.get('OH"' if i == 0 else 'PH"', '0')
                         p = bval(pptr_bin)
                         inst = slot_live[p]
-                        if inst is None: continue
-                        if inst['commit_cycle'] is not None: continue
+                        if inst is None:
+                            continue
+                        if inst['commit_cycle'] is not None:
+                            continue
                         commit_event_count += 1
                         inst['commit_cycle'] = c
                         inst['commit_port'] = i
-                        inst['wbuf_full_at_commit'] = (cur_1b.get('Fi#', '1') == '0')
+                        inst['wbuf_full_at_commit'] = (
+                            cur_1b.get('Fi#', '1') == '0')
                         instances.append(inst)
                         slot_live[p] = None
 
@@ -397,7 +423,7 @@ def extract(vcd_path, list_path=None, verbose=True):
                 if (cur_1b.get('HC!', '0') == '1'
                     and prev_1b.get('HC!', '0') == '0'
                     and raw_queue
-                    and raw_queue[0].get('_class') is None):
+                        and raw_queue[0].get('_class') is None):
                     raw_queue[0]['_class'] = 'MISS_CAUSER'
                     raw_queue[0]['miss_cycle'] = c
                     raw_queue[0]['_miss_state'] = 'ADDR_WAIT'
@@ -407,13 +433,13 @@ def extract(vcd_path, list_path=None, verbose=True):
                     st = tk.get('_miss_state', 'IDLE')
                     if st == 'ADDR_WAIT':
                         if (cur_1b.get('})"', '0') == '1'
-                            or cur_1b.get('Hz!', '0') == '1'):
+                                or cur_1b.get('Hz!', '0') == '1'):
                             tk['addr_cycle'] = c
                             tk['_miss_state'] = 'FILL_WAIT'
                     elif st == 'FILL_WAIT':
                         if (cur_1b.get('?*"', '0') == '1'
                             or cur_1b.get('Oz!', '0') == '1'
-                            or cur_1b.get('Tw"', '0') == '1'):
+                                or cur_1b.get('Tw"', '0') == '1'):
                             tk['fill_cycle'] = c
                             tk['_miss_state'] = 'WREN_WAIT'
                     elif st == 'WREN_WAIT':
@@ -423,7 +449,7 @@ def extract(vcd_path, list_path=None, verbose=True):
                     elif st == 'RDEN_WAIT':
                         if (cur_1b.get('KC!', '0') == '1'
                             and tk.get('wren_cycle') is not None
-                            and c > tk['wren_cycle']):
+                                and c > tk['wren_cycle']):
                             tk['rden_cycle'] = c
                             tk['_miss_state'] = 'DONE'
 
@@ -437,7 +463,7 @@ def extract(vcd_path, list_path=None, verbose=True):
                 # reached DONE.
                 for tk in reversed(completed_tickets):
                     if (tk.get('_class') == 'MISS_CAUSER'
-                        and tk.get('_miss_state') not in (None, 'DONE', 'IDLE')):
+                            and tk.get('_miss_state') not in (None, 'DONE', 'IDLE')):
                         _advance_miss_fsm(tk)
                         break
 
@@ -446,7 +472,7 @@ def extract(vcd_path, list_path=None, verbose=True):
                 # whether the cache accepts a new request; if rdy=0 (miss
                 # stall) no new ticket opens.
                 prev_req = prev_1b.get('z_#', '0')
-                prev_va  = prev_va_holder[0]
+                prev_va = prev_va_holder[0]
                 req_edge = (dq_req == '1' and prev_req == '0')
                 va_change = (va_bin != prev_va)
 
@@ -454,7 +480,7 @@ def extract(vcd_path, list_path=None, verbose=True):
                 # fired or the vaddr changed (distinguishes pipelined new
                 # requests from a held-high req on a stalled cycle).
                 if (dq_req == '1' and dq_rdy == '1'
-                    and (req_edge or va_change or dq_vld == '1')):
+                        and (req_edge or va_change or dq_vld == '1')):
                     new_tk = {
                         'req_cycle': c,
                         'vld_cycle': None,
@@ -491,7 +517,8 @@ def extract(vcd_path, list_path=None, verbose=True):
                     # Fetch entry is valid but decode isn't ready.
                     # Attribute 1 IQ-stall cycle to the head completed ticket.
                     for tk in completed_tickets:
-                        if tk.get('_iq_popped', False): continue
+                        if tk.get('_iq_popped', False):
+                            continue
                         tk['iq_stall_acc'] = tk.get('iq_stall_acc', 0) + 1
                         break
 
@@ -503,8 +530,10 @@ def extract(vcd_path, list_path=None, verbose=True):
                     # matches this IQ pop.
                     matched_tk = None
                     for tk in completed_tickets:
-                        if tk.get('vaddr_aligned_4') != fa_word: continue
-                        if tk.get('_dec_consumed', False): continue
+                        if tk.get('vaddr_aligned_4') != fa_word:
+                            continue
+                        if tk.get('_dec_consumed', False):
+                            continue
                         matched_tk = tk
                         break
                     if matched_tk is not None:
@@ -539,7 +568,8 @@ def extract(vcd_path, list_path=None, verbose=True):
         print(f"   WB edges:      {wb_edge_count}")
         print(f"   Commits:       {commit_event_count}")
         live = sum(1 for x in slot_live if x is not None)
-        if live: print(f"   Dropped {live} instance(s) still live at trace end")
+        if live:
+            print(f"   Dropped {live} instance(s) still live at trace end")
 
     # ═══════════════════════════════════════════════════════════════════
     # POST-PASS 1: Bind instructions to fetch tickets.
@@ -631,7 +661,7 @@ def extract(vcd_path, list_path=None, verbose=True):
     for inst in pending:
         pc = inst['pc']
         size = 2 if inst['compressed'] else 4
-        word_low  = pc & ~0x3
+        word_low = pc & ~0x3
         word_high = (pc + size - 1) & ~0x3
         issue_c = inst['issue_cycle']
 
@@ -678,7 +708,7 @@ def extract(vcd_path, list_path=None, verbose=True):
         miss_tk = None
         for tk in matched_tickets:
             if (tk.get('_class') == 'MISS_CAUSER'
-                and tk.get('rden_cycle') is not None):
+                    and tk.get('rden_cycle') is not None):
                 miss_tk = tk
                 break
         if miss_tk is not None:
@@ -717,18 +747,18 @@ def extract(vcd_path, list_path=None, verbose=True):
                     tk['_miss_attributed'] = True
                     inst['ic_miss_causer'] = True
                     inst['first_consumer_of_miss'] = True
-                    inst['ic_miss_cycle']  = tk.get('miss_cycle')
-                    inst['ic_addr_cycle']  = tk.get('addr_cycle')
-                    inst['ic_fill_cycle']  = tk.get('fill_cycle')
-                    inst['ic_wren_cycle']  = tk.get('wren_cycle')
-                    inst['ic_rden_cycle']  = tk.get('rden_cycle')
+                    inst['ic_miss_cycle'] = tk.get('miss_cycle')
+                    inst['ic_addr_cycle'] = tk.get('addr_cycle')
+                    inst['ic_fill_cycle'] = tk.get('fill_cycle')
+                    inst['ic_wren_cycle'] = tk.get('wren_cycle')
+                    inst['ic_rden_cycle'] = tk.get('rden_cycle')
                 elif shared:
                     # RVC partner: inherit timestamps without the flag.
-                    inst['ic_miss_cycle']  = tk.get('miss_cycle')
-                    inst['ic_addr_cycle']  = tk.get('addr_cycle')
-                    inst['ic_fill_cycle']  = tk.get('fill_cycle')
-                    inst['ic_wren_cycle']  = tk.get('wren_cycle')
-                    inst['ic_rden_cycle']  = tk.get('rden_cycle')
+                    inst['ic_miss_cycle'] = tk.get('miss_cycle')
+                    inst['ic_addr_cycle'] = tk.get('addr_cycle')
+                    inst['ic_fill_cycle'] = tk.get('fill_cycle')
+                    inst['ic_wren_cycle'] = tk.get('wren_cycle')
+                    inst['ic_rden_cycle'] = tk.get('rden_cycle')
                 break
 
     # ── DIRECTIVE 1: final sort by FETCH ORDER.
@@ -762,8 +792,8 @@ def extract(vcd_path, list_path=None, verbose=True):
             continue
         dec = inst.get('decode_cycle')
         iss = inst.get('issue_cycle')
-        wb  = inst.get('wb_cycle')
-        cc  = inst.get('commit_cycle')
+        wb = inst.get('wb_cycle')
+        cc = inst.get('commit_cycle')
         if dec is not None:
             inst['fe2'] = max(0, dec - 1)
             inst['fe1'] = max(0, inst['fe2'] - 1)
@@ -917,13 +947,15 @@ def extract(vcd_path, list_path=None, verbose=True):
     # ═══════════════════════════════════════════════════════════════════
     # POST-PASS 2: Monotonicity clamp (per-instance).
     # ═══════════════════════════════════════════════════════════════════
-    stages = ['fe1','fe2','decode_cycle','issue_cycle','wb_cycle','commit_cycle']
+    stages = ['fe1', 'fe2', 'decode_cycle',
+              'issue_cycle', 'wb_cycle', 'commit_cycle']
     clamp_stats = {k: 0 for k in stages}
     for inst in instances:
         prev_val = None
         for k in stages:
             v = inst.get(k)
-            if v is None: continue
+            if v is None:
+                continue
             if prev_val is not None and v < prev_val:
                 inst[k] = prev_val
                 clamp_stats[k] += 1
@@ -971,14 +1003,14 @@ def extract(vcd_path, list_path=None, verbose=True):
     # architecturally truthful: a long LOAD EX bar IS what a D-miss looks
     # like from the scoreboard's perspective.
     # ═══════════════════════════════════════════════════════════════════
-    D_HIT_LATENCY  = 3   # issue→wb for a D-hit (observed baseline)
-    D_MISS_THRESH  = 6   # EX > this cycles == likely D-miss
+    D_HIT_LATENCY = 3   # issue→wb for a D-hit (observed baseline)
+    D_MISS_THRESH = 6   # EX > this cycles == likely D-miss
 
     dmiss_count = 0
     for inst in instances:
         inst['dcache_miss'] = False
         inst['dcache_miss_start'] = None
-        inst['dcache_miss_end']   = None
+        inst['dcache_miss_end'] = None
         if inst['fu'] not in ('LOAD', 'STORE'):
             continue
         if inst['issue_cycle'] is None or inst['wb_cycle'] is None:
@@ -989,7 +1021,7 @@ def extract(vcd_path, list_path=None, verbose=True):
             # The miss stall starts after the normal D-hit compute would
             # have finished (issue + D_HIT_LATENCY) and ends at wb_cycle.
             inst['dcache_miss_start'] = inst['issue_cycle'] + D_HIT_LATENCY
-            inst['dcache_miss_end']   = inst['wb_cycle']
+            inst['dcache_miss_end'] = inst['wb_cycle']
             dmiss_count += 1
 
     if verbose:
@@ -1039,6 +1071,7 @@ def extract(vcd_path, list_path=None, verbose=True):
         'cycles': cycles,
         'instructions': instances,
     }
+
 
 # prev_va_holder is a module-level mutable box to simplify closures
 prev_va_holder = ['0']

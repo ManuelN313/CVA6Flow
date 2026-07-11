@@ -50,15 +50,19 @@ def latency(rec):
 
 
 def classify(rec):
-    if rec.get("dc_primary_miss"):  return "primary_miss"
-    if rec.get("dc_coalesced"):     return "coalesced"
-    if rec.get("dc_refill_overlap"):return "refill_overlap"
+    if rec.get("dc_primary_miss"):
+        return "primary_miss"
+    if rec.get("dc_coalesced"):
+        return "coalesced"
+    if rec.get("dc_refill_overlap"):
+        return "refill_overlap"
     return "clean_hit"
 
 
 def text_bar(n, scale, width=40):
     """Render n as a unicode bar relative to `scale` (max value)."""
-    if scale == 0: return ""
+    if scale == 0:
+        return ""
     blocks = " ▏▎▍▌▋▊▉█"
     full = width * n / scale
     n_full = int(full)
@@ -215,7 +219,8 @@ def main():
             default=1)
         max_nc = max(max_nc, 1)
         for i, bd in enumerate(band_data):
-            if not bd: continue
+            if not bd:
+                continue
             lo = cmin + i * band_size
             hi = lo + band_size - 1
             nc = sum(v for k, v in bd.items() if k != "clean_hit")
@@ -240,8 +245,8 @@ def main():
     # appear in the same record's dc_events — these are likely the
     # cacheline that drove the coalesce.
     coalesce_nline_counts = Counter()
-    store_alloc_nlines    = Counter()
-    refill_only_lats      = Counter()
+    store_alloc_nlines = Counter()
+    refill_only_lats = Counter()
     for r in loads:
         cls = classify(r)
         events = r.get("dc_events") or []

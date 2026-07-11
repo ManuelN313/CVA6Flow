@@ -86,9 +86,11 @@ def main():
         # Diagnostic info on what's in the header
         print(f"# total paths in header: {len(path_to_id)}", file=sys.stderr)
         sample = [k for k in path_to_id if "issue_pointer_q" in k][:5]
-        print(f"# sample paths containing issue_pointer_q: {sample}", file=sys.stderr)
+        print(
+            f"# sample paths containing issue_pointer_q: {sample}", file=sys.stderr)
         sample2 = [k for k in path_to_id if "mem_q[0].sbe.fu" in k][:3]
-        print(f"# sample paths containing 'mem_q[0].sbe.fu': {sample2}", file=sys.stderr)
+        print(
+            f"# sample paths containing 'mem_q[0].sbe.fu': {sample2}", file=sys.stderr)
         # Print the top-level scopes (first few unique prefixes)
         prefixes = set()
         for k in path_to_id:
@@ -113,14 +115,18 @@ def main():
             for k, v in path_to_id.items():
                 if k.endswith(".clk_i"):
                     CLK = v
-                    print(f"# CLK fallback (suffix match): {k}", file=sys.stderr)
+                    print(
+                        f"# CLK fallback (suffix match): {k}", file=sys.stderr)
                     break
 
         IPTR = find("issue_stage_i.i_scoreboard.issue_pointer_q")
         WTV = find("issue_stage_i.i_scoreboard.wt_valid_i")
-        TID = [find(f"issue_stage_i.i_scoreboard.trans_id_i[{p}]") for p in range(5)]
-        MEMQ_FU = [find(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.fu") for n in range(8)]
-        MEMQ_RD = [find(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rd") for n in range(8)]
+        TID = [
+            find(f"issue_stage_i.i_scoreboard.trans_id_i[{p}]") for p in range(5)]
+        MEMQ_FU = [
+            find(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.fu") for n in range(8)]
+        MEMQ_RD = [
+            find(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.rd") for n in range(8)]
         DV = find("issue_stage_i.i_scoreboard.decoded_instr_valid_i")
         DA = find("issue_stage_i.i_scoreboard.decoded_instr_ack_o")
         FUI = find("issue_stage_i.i_scoreboard.flush_unissued_instr_i")

@@ -7,30 +7,34 @@ snapshots of `decoded_instr_i[0].bp` (the same pattern Phase 4a uses
 for fu/rs1/rs2/rd) — see "Architectural finding 2" below.
 
 ## Goal
+
 Per-CTRL_FLOW record branch prediction & resolution: capture what the
 predictor said at fetch time (cf type + predicted target) and what
 the branch_unit actually resolved (cf type + target + taken +
 mispredict). Compute hit rate; surface per-PC mispredict patterns.
 
 ## Per-record fields added to InstructionRecord
-- `bp_predicted_cf      : str`   — "NoCF" / "Branch" / "Jump" / "JumpR" / "Return"
-- `bp_predicted_target  : int`   — VLEN-bit predicted target (None for NoCF)
-- `bp_resolved_cf       : str`   — actual cf_type from branch_unit
-- `bp_resolved_target   : int`   — actual computed target
-- `bp_resolved_taken    : bool`  — actual taken/not-taken outcome
-- `bp_mispredict        : bool`  — HW-authoritative is_mispredict
-- `bp_resolution_cycle  : int`   — cycle resolved_branch_i.valid=1 fired
+
+- `bp_predicted_cf      : str` — "NoCF" / "Branch" / "Jump" / "JumpR" / "Return"
+- `bp_predicted_target  : int` — VLEN-bit predicted target (None for NoCF)
+- `bp_resolved_cf       : str` — actual cf_type from branch_unit
+- `bp_resolved_target   : int` — actual computed target
+- `bp_resolved_taken    : bool` — actual taken/not-taken outcome
+- `bp_mispredict        : bool` — HW-authoritative is_mispredict
+- `bp_resolution_cycle  : int` — cycle resolved_branch_i.valid=1 fired
 
 ## cf_t enum mapping (ariane_pkg.sv:170-176)
-- NoCF   = 0 : no prediction made (or predicted not-taken)
+
+- NoCF = 0 : no prediction made (or predicted not-taken)
 - Branch = 1 : BHT-predicted taken conditional branch
-- Jump   = 2 : direct unconditional jump (frontend-resolved)
-- JumpR  = 3 : indirect jump, BTB-predicted target
+- Jump = 2 : direct unconditional jump (frontend-resolved)
+- JumpR = 3 : indirect jump, BTB-predicted target
 - Return = 4 : RAS-predicted return
 
 The cf value at issue also identifies the predictor source.
 
 ## Signals tracked
+
 - 2 prediction signals (decoded_instr_i[0].bp.{cf,predict_address}) via
   pre-edge snapshot at the decode handshake.
 - 6 resolution signals (i_scoreboard.resolved_branch_i.{valid, pc,
@@ -39,6 +43,7 @@ The cf value at issue also identifies the predictor source.
 ## Architectural finding 1: workload behavior visible in the data
 
 **fdiv hot loop (PC 0x80004134, `bltu a4,a5,8000410e <memset+0x98>`):**
+
 - 157 total occurrences
 - 156 predicted Branch → 0x8000410e correctly (BHT trained)
 - 2 mispredicts:
@@ -49,6 +54,7 @@ This is the canonical BHT pattern: cold miss → train → many correct
 predictions → one exit miss.
 
 **Mispredict distribution (11 total in fdiv):**
+
 - 9 NoCF→{Branch×6, Return×2, JumpR×1}: cold predictor at first
   encounter
 - 2 Branch→Branch with taken=N: loop-exit mispredicts (BHT predicted
@@ -96,16 +102,17 @@ JALs always have known targets.
 
 ## Per-record classification results (fdiv, v0.2)
 
-| Metric | Value |
-|--------|-------|
-| Total CTRL_FLOW records | 187 |
-| Predicted (non-NoCF) | 159 (157 Branch + 2 Jump) |
-| Reached resolution | 186 |
-| Flushed before resolve | 1 |
-| Mispredicts | 11 |
-| Hit rate | 94.09% |
+| Metric                  | Value                     |
+| ----------------------- | ------------------------- |
+| Total CTRL_FLOW records | 187                       |
+| Predicted (non-NoCF)    | 159 (157 Branch + 2 Jump) |
+| Reached resolution      | 186                       |
+| Flushed before resolve  | 1                         |
+| Mispredicts             | 11                        |
+| Hit rate                | 94.09%                    |
 
 ## Validation
+
 - 159 non-NoCF predictions in fdiv — up from 1 in v0.1; pre-edge
   snapshot fix verified end-to-end
 - 156/157 memset loop branches predicted Branch with correct target
@@ -121,9 +128,10 @@ JALs always have known targets.
   conditional branch with predicted T.
 
 ## Files in this archive
-- `phase3_pipeline_tracer.py` v0.2     — extractor with Phase 7a integrated
-- `p7a_spot_check.py`                   — 4-view spot-check tool:
-    1. summary (totals, hit rate, by_cf cross-tables)
-    2. all non-NoCF predictions with cross-validation against resolution
-    3. top-N mispredicts with full context
-    4. per-PC mispredict frequency (recurring offenders)
+
+- `phase3_pipeline_tracer.py` v0.2 — extractor with Phase 7a integrated
+- `p7a_spot_check.py` — 4-view spot-check tool:
+  1. summary (totals, hit rate, by_cf cross-tables)
+  2. all non-NoCF predictions with cross-validation against resolution
+  3. top-N mispredicts with full context
+  4. per-PC mispredict frequency (recurring offenders)

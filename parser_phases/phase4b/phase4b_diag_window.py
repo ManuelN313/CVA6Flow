@@ -231,15 +231,15 @@ def main():
         # ---- I$ FSM + miss flag ----
         # state_q is the registered state inside cva6_icache.
         STATE_Q, path_state = find_suffix("state_q")
-        MISS_O,  path_miss  = find_suffix("miss_o")
+        MISS_O,  path_miss = find_suffix("miss_o")
 
         # ---- dreq_i fields (frontend -> I$, per cva6.sv:65) ----
         # The packed struct fields appear as dreq_i.<field> in the VCD.
         DREQ_REQ,   p_dreq_req = find_suffix("dreq_i.req")
-        KILL_S1,    path_ks1   = find_suffix("dreq_i.kill_s1")
-        KILL_S2,    path_ks2   = find_suffix("dreq_i.kill_s2")
-        SPEC,       path_spec  = find_suffix("dreq_i.spec")
-        DREQ_VADDR, p_dreq_va  = find_suffix("dreq_i.vaddr")
+        KILL_S1,    path_ks1 = find_suffix("dreq_i.kill_s1")
+        KILL_S2,    path_ks2 = find_suffix("dreq_i.kill_s2")
+        SPEC,       path_spec = find_suffix("dreq_i.spec")
+        DREQ_VADDR, p_dreq_va = find_suffix("dreq_i.vaddr")
 
         # Underscored fallbacks (some VCD dumpers flatten packed structs).
         if DREQ_REQ is None:
@@ -252,8 +252,8 @@ def main():
             DREQ_VADDR, p_dreq_va = find_suffix("dreq_i_vaddr")
 
         # ---- dreq_o fields (I$ -> frontend, per cva6.sv:72) ----
-        DRSP_VLD,   p_drsp_vld   = find_suffix("dreq_o.valid")
-        DRSP_RDY,   p_drsp_rdy   = find_suffix("dreq_o.ready")
+        DRSP_VLD,   p_drsp_vld = find_suffix("dreq_o.valid")
+        DRSP_RDY,   p_drsp_rdy = find_suffix("dreq_o.ready")
         DRSP_VADDR, p_drsp_vaddr = find_suffix("dreq_o.vaddr")
         if DRSP_VLD is None:
             DRSP_VLD, p_drsp_vld = find_suffix("dreq_o_valid")
@@ -261,8 +261,8 @@ def main():
             DRSP_RDY, p_drsp_rdy = find_suffix("dreq_o_ready")
 
         # ---- I$ <-> memory (miss-handling) ----
-        MEM_REQ_O,  p_mreq  = find_suffix("mem_data_req_o")
-        MEM_ACK_I,  p_mack  = find_suffix("mem_data_ack_i")
+        MEM_REQ_O,  p_mreq = find_suffix("mem_data_req_o")
+        MEM_ACK_I,  p_mack = find_suffix("mem_data_ack_i")
         MEM_RTRN,   p_mrtrn = find_suffix("mem_rtrn_vld_i")
 
         # ---- Report what we resolved ----

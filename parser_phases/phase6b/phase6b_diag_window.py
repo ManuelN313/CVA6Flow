@@ -31,21 +31,21 @@ Per-cycle columns:
   rTID   : refill_core_rsp_o.tid   (trans_id of the responded refill)
 """
 
+from phase3_pipeline_tracer import (
+    parse_var_block, match_whitelist, binary_to_int,
+    LOAD_FSM_NAMES,
+)
 import argparse
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phase3_pipeline_tracer import (
-    parse_var_block, match_whitelist, binary_to_int,
-    LOAD_FSM_NAMES,
-)
 
 
 # Names mirror what's declared in hpdcache_miss_handler.sv lines 149-159.
 MISS_REQ_FSM = {0: "MISS_REQ_IDLE", 1: "MISS_REQ_SEND"}
-REFILL_FSM   = {0: "REFILL_IDLE", 1: "REFILL_WRITE",
-                2: "REFILL_WRITE_DIR", 3: "REFILL_INVAL"}
+REFILL_FSM = {0: "REFILL_IDLE", 1: "REFILL_WRITE",
+              2: "REFILL_WRITE_DIR", 3: "REFILL_INVAL"}
 
 
 WHITELIST = [
@@ -61,27 +61,27 @@ WHITELIST = [
     #   gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache.
     #     hpdcache_miss_handler_i.*
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_i",
+    "hpdcache_miss_handler_i.mshr_alloc_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_tid_i",
+    "hpdcache_miss_handler_i.mshr_alloc_tid_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_sid_i",
+    "hpdcache_miss_handler_i.mshr_alloc_sid_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_is_prefetch_i",
+    "hpdcache_miss_handler_i.mshr_alloc_is_prefetch_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_alloc_nline_i",
+    "hpdcache_miss_handler_i.mshr_alloc_nline_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_check_i",
+    "hpdcache_miss_handler_i.mshr_check_i",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.mshr_check_hit_o",
+    "hpdcache_miss_handler_i.mshr_check_hit_o",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.miss_req_fsm_q",
+    "hpdcache_miss_handler_i.miss_req_fsm_q",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_fsm_q",
+    "hpdcache_miss_handler_i.refill_fsm_q",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_core_rsp_valid_o",
+    "hpdcache_miss_handler_i.refill_core_rsp_valid_o",
     "gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-        "hpdcache_miss_handler_i.refill_core_rsp_o.tid",
+    "hpdcache_miss_handler_i.refill_core_rsp_o.tid",
     # Subsystem-level miss boolean (bonus diagnostic — fires on any
     # miss in the cache, not per-trans_id but useful for sanity).
     "gen_cache_hpd.i_cache_subsystem.dcache_miss_o",
@@ -96,10 +96,13 @@ _LOAD_COMPACT = {
     "WAIT_WB_EMPTY": "WWE",
 }
 
+
 def fmt_load_state(s):
-    if s is None: return ' ? '
+    if s is None:
+        return ' ? '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     name = LOAD_FSM_NAMES.get(n, f'?{n}')
     return _LOAD_COMPACT.get(name, name[:3])
 
@@ -110,30 +113,39 @@ _REFILL_COMPACT = {
     "REFILL_WRITE_DIR": " WD", "REFILL_INVAL": " IV",
 }
 
+
 def fmt_miss_req(s):
-    if s is None: return ' ? '
+    if s is None:
+        return ' ? '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     return _MREQ_COMPACT.get(MISS_REQ_FSM.get(n, f"?{n}"), f"?{n}")
 
+
 def fmt_refill(s):
-    if s is None: return ' ? '
+    if s is None:
+        return ' ? '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     return _REFILL_COMPACT.get(REFILL_FSM.get(n, f"?{n}"), f"?{n}")
 
 
 def fmt_tid(s):
-    if s is None: return '-'
+    if s is None:
+        return '-'
     n = binary_to_int(s)
     return str(n) if n is not None else 'X'
 
 
 def fmt_nline_low16(s):
     """Show only low 16 bits of nline for column width."""
-    if s is None: return '----'
+    if s is None:
+        return '----'
     n = binary_to_int(s)
-    if n is None: return 'XXXX'
+    if n is None:
+        return 'XXXX'
     return f"{n & 0xFFFF:04x}"
 
 
@@ -160,23 +172,23 @@ def main():
         single_id = {m["whitelist_path"]: m["vcd_ids"][0]
                      for m in matches if len(m["vcd_ids"]) == 1}
 
-        CLK     = single_id.get("clk_i")
-        LDST    = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
-        LCTID   = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.trans_id")
-        _BASE   = ("gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
-                   "hpdcache_miss_handler_i.")
-        MALLO   = single_id.get(_BASE + "mshr_alloc_i")
-        MTID    = single_id.get(_BASE + "mshr_alloc_tid_i")
-        MSID    = single_id.get(_BASE + "mshr_alloc_sid_i")
-        MPF     = single_id.get(_BASE + "mshr_alloc_is_prefetch_i")
-        MNLINE  = single_id.get(_BASE + "mshr_alloc_nline_i")
-        MCHK    = single_id.get(_BASE + "mshr_check_i")
-        MCHKH   = single_id.get(_BASE + "mshr_check_hit_o")
-        MFSM    = single_id.get(_BASE + "miss_req_fsm_q")
-        RFSM    = single_id.get(_BASE + "refill_fsm_q")
-        RRSP    = single_id.get(_BASE + "refill_core_rsp_valid_o")
-        RTID    = single_id.get(_BASE + "refill_core_rsp_o.tid")
-        DMISS   = single_id.get(
+        CLK = single_id.get("clk_i")
+        LDST = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
+        LCTID = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.trans_id")
+        _BASE = ("gen_cache_hpd.i_cache_subsystem.i_dcache.i_hpdcache."
+                 "hpdcache_miss_handler_i.")
+        MALLO = single_id.get(_BASE + "mshr_alloc_i")
+        MTID = single_id.get(_BASE + "mshr_alloc_tid_i")
+        MSID = single_id.get(_BASE + "mshr_alloc_sid_i")
+        MPF = single_id.get(_BASE + "mshr_alloc_is_prefetch_i")
+        MNLINE = single_id.get(_BASE + "mshr_alloc_nline_i")
+        MCHK = single_id.get(_BASE + "mshr_check_i")
+        MCHKH = single_id.get(_BASE + "mshr_check_hit_o")
+        MFSM = single_id.get(_BASE + "miss_req_fsm_q")
+        RFSM = single_id.get(_BASE + "refill_fsm_q")
+        RRSP = single_id.get(_BASE + "refill_core_rsp_valid_o")
+        RTID = single_id.get(_BASE + "refill_core_rsp_o.tid")
+        DMISS = single_id.get(
             "gen_cache_hpd.i_cache_subsystem.dcache_miss_o")
 
         if CLK is None:
@@ -227,19 +239,19 @@ def main():
             cycle += 1
             if not (args.start <= cycle <= args.end):
                 return
-            lst   = fmt_load_state(state.get(LDST))
+            lst = fmt_load_state(state.get(LDST))
             lctid = fmt_tid(state.get(LCTID))
             mallo = state.get(MALLO, "0") if MALLO else "?"
-            mtid  = fmt_tid(state.get(MTID))
-            msid  = fmt_tid(state.get(MSID))     # sid is small int too
-            mpf   = state.get(MPF, "0") if MPF else "?"
+            mtid = fmt_tid(state.get(MTID))
+            msid = fmt_tid(state.get(MSID))     # sid is small int too
+            mpf = state.get(MPF, "0") if MPF else "?"
             mnline = fmt_nline_low16(state.get(MNLINE))
-            mchk  = state.get(MCHK, "0") if MCHK else "?"
+            mchk = state.get(MCHK, "0") if MCHK else "?"
             mchkh = state.get(MCHKH, "0") if MCHKH else "?"
-            mfsm  = fmt_miss_req(state.get(MFSM))
-            rfsm  = fmt_refill(state.get(RFSM))
-            rrsp  = state.get(RRSP, "0") if RRSP else "?"
-            rtid  = fmt_tid(state.get(RTID))
+            mfsm = fmt_miss_req(state.get(MFSM))
+            rfsm = fmt_refill(state.get(RFSM))
+            rrsp = state.get(RRSP, "0") if RRSP else "?"
+            rtid = fmt_tid(state.get(RTID))
             dmiss = state.get(DMISS, "0") if DMISS else "?"
             print(f"{cycle:>5} | "
                   f"{lst} {lctid:>5}    | "
@@ -266,11 +278,14 @@ def main():
                 clk_at_ts_start = state.get(CLK, "0")
                 continue
             if c0 in "01xXzZ":
-                value = c0; vcd_id = line[1:]
+                value = c0
+                vcd_id = line[1:]
             elif c0 in "bBrR":
                 sp = line.find(" ")
-                if sp <= 0: continue
-                value = line[1:sp]; vcd_id = line[sp+1:]
+                if sp <= 0:
+                    continue
+                value = line[1:sp]
+                vcd_id = line[sp+1:]
             else:
                 continue
             if vcd_id in tracked:

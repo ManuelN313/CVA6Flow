@@ -3,42 +3,166 @@
 <meta charset="utf-8">
 <title>CVA6 Pipeline Viewer v31</title>
 <style>
-  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden;
-               font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-               background: #1a1d24; color: #d8dde5; }
+  html,
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    font: 12px -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    background: #1a1d24;
+    color: #d8dde5;
+  }
+
   :root {
-    --bg: #1a1d24; --panel: #22252c; --line: #2a2e38; --dim: #9aa0aa;
+    --bg: #1a1d24;
+    --panel: #22252c;
+    --line: #2a2e38;
+    --dim: #9aa0aa;
     --accent: #63b3ed;
   }
-  body { display: grid; grid-template-rows: 36px 1fr 74px; }
-  #toolbar {
-    display: flex; gap: 14px; align-items: center; padding: 0 12px;
-    background: var(--panel); border-bottom: 1px solid var(--line);
+
+  body {
+    display: grid;
+    grid-template-rows: 36px 1fr 74px;
   }
-  #toolbar > span.title { font-weight: 600; letter-spacing: 0.2px; color: #eaeef5; }
-  #toolbar label { display: flex; align-items: center; gap: 6px; color: var(--dim); }
-  #toolbar input[type=file] { color: var(--dim); font-size: 11px; }
-  #toolbar input[type=range] { width: 160px; }
-  #toolbar .spacer { flex: 1; }
-  #toolbar .stats { color: var(--dim); font-family: ui-monospace, "JetBrains Mono", monospace; font-size: 11px; }
-  #main { position: relative; overflow: hidden; }
-  #main canvas { display: block; position: absolute; left: 0; top: 0;
-                 image-rendering: pixelated; image-rendering: crisp-edges; }
-  #tip { position: absolute; background: #0d0f14ee; border: 1px solid #444;
-         border-radius: 3px; padding: 6px 8px; font: 11px ui-monospace, monospace;
-         color: #d8dde5; pointer-events: none; display: none; white-space: pre;
-         z-index: 10; box-shadow: 0 4px 14px #000a; max-width: 360px; }
-  #legend { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--dim); font-size: 10.5px; }
-  #legend .sw { display: inline-flex; align-items: center; gap: 4px; }
-  #legend .sw i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; border: 1px solid #0004; }
-  #minimap-wrap { border-top: 1px solid var(--line); background: #14161b; position: relative; }
-  #minimap { display: block; width: 100%; height: 100%; cursor: crosshair; }
-  #minimap-view { position: absolute; border: 1px solid #63b3ed; background: #63b3ed20; pointer-events: none; }
-  button.tool { background: #2e3340; color: #d8dde5; border: 1px solid #3a4050;
-                padding: 4px 10px; border-radius: 3px; cursor: pointer; font: inherit; font-size: 11px; }
-  button.tool:hover { background: #3a4050; }
-  button.tool.active { background: #3a4a68; border-color: var(--accent); color: #fff; }
+
+  #toolbar {
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    padding: 0 12px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--line);
+  }
+
+  #toolbar>span.title {
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #eaeef5;
+  }
+
+  #toolbar label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--dim);
+  }
+
+  #toolbar input[type=file] {
+    color: var(--dim);
+    font-size: 11px;
+  }
+
+  #toolbar input[type=range] {
+    width: 160px;
+  }
+
+  #toolbar .spacer {
+    flex: 1;
+  }
+
+  #toolbar .stats {
+    color: var(--dim);
+    font-family: ui-monospace, "JetBrains Mono", monospace;
+    font-size: 11px;
+  }
+
+  #main {
+    position: relative;
+    overflow: hidden;
+  }
+
+  #main canvas {
+    display: block;
+    position: absolute;
+    left: 0;
+    top: 0;
+    image-rendering: pixelated;
+    image-rendering: crisp-edges;
+  }
+
+  #tip {
+    position: absolute;
+    background: #0d0f14ee;
+    border: 1px solid #444;
+    border-radius: 3px;
+    padding: 6px 8px;
+    font: 11px ui-monospace, monospace;
+    color: #d8dde5;
+    pointer-events: none;
+    display: none;
+    white-space: pre;
+    z-index: 10;
+    box-shadow: 0 4px 14px #000a;
+    max-width: 360px;
+  }
+
+  #legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    color: var(--dim);
+    font-size: 10.5px;
+  }
+
+  #legend .sw {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  #legend .sw i {
+    display: inline-block;
+    width: 12px;
+    height: 10px;
+    border-radius: 2px;
+    border: 1px solid #0004;
+  }
+
+  #minimap-wrap {
+    border-top: 1px solid var(--line);
+    background: #14161b;
+    position: relative;
+  }
+
+  #minimap {
+    display: block;
+    width: 100%;
+    height: 100%;
+    cursor: crosshair;
+  }
+
+  #minimap-view {
+    position: absolute;
+    border: 1px solid #63b3ed;
+    background: #63b3ed20;
+    pointer-events: none;
+  }
+
+  button.tool {
+    background: #2e3340;
+    color: #d8dde5;
+    border: 1px solid #3a4050;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    font: inherit;
+    font-size: 11px;
+  }
+
+  button.tool:hover {
+    background: #3a4050;
+  }
+
+  button.tool.active {
+    background: #3a4a68;
+    border-color: var(--accent);
+    color: #fff;
+  }
 </style>
+
 <body>
   <div id="toolbar">
     <span class="title">CVA6 Pipeline Viewer v31</span></span>
@@ -62,859 +186,906 @@
     <div id="minimap-view"></div>
     <div id="legend" style="position:absolute; left:8px; top:4px;"></div>
   </div>
-<script>
-"use strict";
+  <script>
+    "use strict";
 
-/* ═══════════════════════════════════════════════════════════════════════════
- *  CVA6 PIPELINE VIEWER v24 — research-driven rewrite
- *
- *  Invariants (from the gem5/Konata research playbook):
- *   1. ONE cycleToX() function used everywhere.  Never accumulate x+=width.
- *   2. ONE stage-definition table drives all rendering.
- *   3. Observed timestamps ONLY.  Never synthesize latencies.
- *   4. Same-cycle stages merge with combined labels (W/C).
- *   5. Zoom preserves the cycle under the cursor.
- *   6. Viewport culling with per-row sorted segment indices.
- *   7. Layered canvases (static bg / segments / hover overlay).
- *  ═══════════════════════════════════════════════════════════════════════════ */
+    /* ═══════════════════════════════════════════════════════════════════════════
+     *  CVA6 PIPELINE VIEWER v24 — research-driven rewrite
+     *
+     *  Invariants (from the gem5/Konata research playbook):
+     *   1. ONE cycleToX() function used everywhere.  Never accumulate x+=width.
+     *   2. ONE stage-definition table drives all rendering.
+     *   3. Observed timestamps ONLY.  Never synthesize latencies.
+     *   4. Same-cycle stages merge with combined labels (W/C).
+     *   5. Zoom preserves the cycle under the cursor.
+     *   6. Viewport culling with per-row sorted segment indices.
+     *   7. Layered canvases (static bg / segments / hover overlay).
+     *  ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ─── Global state (one source of truth) ─────────────────────────────────── */
-const state = {
-  insts:    [],
-  segsByRow: [],
-  rowMetrics: [],
-  totalCycles: 1,
-  firstCycle: 0,
-  viewStart: 0,
-  scrollY:   0,
-  pxPerCycle: 14,
-  rowH: 18,
-  padL: 260,
-  padT: 22,
-  hoverSeg: null,
-  mainW: 0, mainH: 0,
-};
+    /* ─── Global state (one source of truth) ─────────────────────────────────── */
+    const state = {
+      insts: [],
+      segsByRow: [],
+      rowMetrics: [],
+      totalCycles: 1,
+      firstCycle: 0,
+      viewStart: 0,
+      scrollY: 0,
+      pxPerCycle: 14,
+      rowH: 18,
+      padL: 260,
+      padT: 22,
+      hoverSeg: null,
+      mainW: 0, mainH: 0,
+    };
 
-const FU_COLOR = {
-  'ALU':      '#6eb36b',
-  'CTRL':     '#8b5aa8',
-  'CSR':      '#b887c4',
-  'MULT':     '#4fa68a',
-  'LOAD':     '#e08a3c',
-  'STORE':    '#c97a2a',
-  'FPU':      '#7fb87a',
-  'FDIVSQRT': '#d06aa0',
-  '__default':'#8899aa',
-};
+    const FU_COLOR = {
+      'ALU': '#6eb36b',
+      'CTRL': '#8b5aa8',
+      'CSR': '#b887c4',
+      'MULT': '#4fa68a',
+      'LOAD': '#e08a3c',
+      'STORE': '#c97a2a',
+      'FPU': '#7fb87a',
+      'FDIVSQRT': '#d06aa0',
+      '__default': '#8899aa',
+    };
 
-const COL = {
-  redir:   '#a03040',
-  miss:    '#e8857a',
-  addr:    '#c9a67a',
-  fill:    '#c68a60',
-  wren:    '#b4b06b',
-  fe1:     '#56b4c2',
-  fe1_wait:'#3d7680',      // dimmer teal — fetch-pipeline wait
-  fe2:     '#4a90c2',
-  iq:      '#8a6a2e',      // brighter brown — post-F2 IQ wait (now always visible)
-  ro:      '#4d5a78',      // slate — read-operands / RAW-hazard wait
-  dmiss:   '#d24a4a',      // red — D-cache miss stall within EX
-  dec:     '#8a7db8',
-  iss:     '#7a94c4',
-  wb:      '#6eb36b',
-  cm:      '#5aa068',
-  cm_stall:'#d4a040',
-  flushed: '#4a5568',
-  grid:    '#252932',
-  grid_major:'#2d323d',
-  axis:    '#9aa0aa',
-  row_alt: '#1e2128',
-  bg:      '#1a1d24',
-  label_row:'#c0c6d0',
-  label_bar:'#0a0c10',
-  line:    '#2a2e38',
-};
+    const COL = {
+      redir: '#a03040',
+      miss: '#e8857a',
+      addr: '#c9a67a',
+      fill: '#c68a60',
+      wren: '#b4b06b',
+      fe1: '#56b4c2',
+      fe1_wait: '#3d7680',      // dimmer teal — fetch-pipeline wait
+      fe2: '#4a90c2',
+      iq: '#8a6a2e',      // brighter brown — post-F2 IQ wait (now always visible)
+      ro: '#4d5a78',      // slate — read-operands / RAW-hazard wait
+      dmiss: '#d24a4a',      // red — D-cache miss stall within EX
+      dec: '#8a7db8',
+      iss: '#7a94c4',
+      wb: '#6eb36b',
+      cm: '#5aa068',
+      cm_stall: '#d4a040',
+      flushed: '#4a5568',
+      grid: '#252932',
+      grid_major: '#2d323d',
+      axis: '#9aa0aa',
+      row_alt: '#1e2128',
+      bg: '#1a1d24',
+      label_row: '#c0c6d0',
+      label_bar: '#0a0c10',
+      line: '#2a2e38',
+    };
 
-/* STAGE_DEFS — the single source of truth */
-const STAGE_DEFS = [
-  { key: 'redir', label: 'redir',
-    start: 'redir_start', end: 'redir_end', color: COL.redir,
-    opts: { requires: i => i.redir_start != null && i.redir_end != null
-                           && i.redir_end > i.redir_start } },
-  // v31 RULE 1: Miss causers — 5-phase FSM fills the space between FE1
-  // and FE2.  FE1 precedes miss_cycle by exactly 1 cycle (the request).
-  //   [fe1 .. miss)   = F1 (the fetch request cycle)
-  //   [miss .. addr)  = miss band
-  //   [addr .. fill)  = addr band
-  //   [fill .. wren)  = fill band
-  //   [wren .. rden)  = wren band
-  //   [rden .. rden+1) = FE2 (the refill-complete read-out cycle)
-  { key: 'fe1_miss', label: 'F1',
-    start: 'fe1', end: 'ic_miss_cycle', color: COL.fe1,
-    opts: { requires: i => i.fe1 != null && i.ic_miss_cycle != null
-                            && i.ic_miss_cycle > i.fe1 } },
-  { key: 'miss', label: 'miss',
-    start: 'ic_miss_cycle', end: 'ic_addr_cycle', color: COL.miss,
-    opts: { requires: i => i.ic_miss_cycle != null && i.ic_addr_cycle != null } },
-  { key: 'addr', label: 'addr',
-    start: 'ic_addr_cycle', end: 'ic_fill_cycle', color: COL.addr,
-    opts: { requires: i => i.ic_addr_cycle != null && i.ic_fill_cycle != null } },
-  { key: 'fill', label: 'fill',
-    start: 'ic_fill_cycle', end: 'ic_wren_cycle', color: COL.fill,
-    opts: { requires: i => i.ic_fill_cycle != null && i.ic_wren_cycle != null } },
-  { key: 'wren', label: 'wren',
-    start: 'ic_wren_cycle', end: 'ic_rden_cycle', color: COL.wren,
-    opts: { requires: i => i.ic_wren_cycle != null && i.ic_rden_cycle != null
-                            && i.ic_rden_cycle > i.ic_wren_cycle } },
-  // v31 RULE 1: HIT — FE1 is the request cycle (1 cycle).  Extractor
-  // guarantees fe2 = fe1 + 1 for hits, so this is always a 1-cycle cell.
-  // The ticket's actual vld_cycle (which may be later due to IQ
-  // backpressure) has been shifted into the IQ stage below.
-  { key: 'fe1', label: 'F1',
-    start: 'fe1', end: 'fe2', color: COL.fe1,
-    opts: { requires: i => i.fe1 != null && i.fe2 != null && i.fe2 > i.fe1
-                           && i.ic_miss_cycle == null } },
-  // FE2 — 1-cycle cell at the fe2 position.
-  { key: 'fe2', label: 'F2',
-    start: 'fe2', end: null, color: COL.fe2,
-    opts: { requires: i => i.fe2 != null, width: 1 } },
-  // v31 RULE 2: IQ STALL — fills ENTIRE space from fe2+1 to issue_cycle.
-  // This covers both IQ wait time AND read-operands stall time (they
-  // are indistinguishable from a microarch perspective — the instruction
-  // is in the queue, waiting for decode and scoreboard readiness).
-  { key: 'iq', label: 'IQ',
-    start: 'fe2', end: 'issue_cycle', color: COL.iq,
-    opts: { requires: i => i.fe2 != null && i.issue_cycle != null
-                            && i.issue_cycle > i.fe2 + 1,
-            startOffset: 1,
-            dotted: true } },
-  { key: 'dec', label: 'D',
-    start: 'decode_cycle', end: null, color: COL.dec,
-    opts: { requires: i => i.decode_cycle != null, width: 1 } },
-  { key: 'iss', label: 'I',
-    start: 'issue_cycle', end: null, color: COL.iss,
-    opts: { requires: i => i.issue_cycle != null, width: 1 } },
-  // v31 RULE 4: EX fills ENTIRE space from issue+1 to wb.
-  { key: 'ex', label: 'EX',
-    start: 'issue_cycle', end: 'wb_cycle', color: null,
-    opts: { requires: i => i.issue_cycle != null && i.wb_cycle != null
-                            && i.wb_cycle > i.issue_cycle + 1,
-            startOffset: 1,
-            colorFn: i => FU_COLOR[i.fu] || FU_COLOR.__default } },
-  // D-cache miss stall — overlays the EX bar (painted on top).
-  { key: 'dmiss', label: 'dmiss',
-    start: 'dcache_miss_start', end: 'dcache_miss_end', color: COL.dmiss,
-    opts: { requires: i => i.dcache_miss === true
-                            && i.dcache_miss_start != null
-                            && i.dcache_miss_end != null } },
-  { key: 'wb', label: 'W',
-    start: 'wb_cycle', end: null, color: COL.wb,
-    opts: { requires: i => i.wb_cycle != null, width: 1 } },
-  { key: 'cm', label: 'C',
-    start: 'commit_cycle', end: null, color: COL.cm,
-    opts: { requires: i => i.commit_cycle != null, width: 1,
-            colorFn: i => i.wbuf_full_at_commit ? COL.cm_stall : COL.cm,
-            labelFn: i => i.wbuf_full_at_commit ? 'C!' : 'C' } },
-];
+    /* STAGE_DEFS — the single source of truth */
+    const STAGE_DEFS = [
+      {
+        key: 'redir', label: 'redir',
+        start: 'redir_start', end: 'redir_end', color: COL.redir,
+        opts: {
+          requires: i => i.redir_start != null && i.redir_end != null
+            && i.redir_end > i.redir_start
+        }
+      },
+      // v31 RULE 1: Miss causers — 5-phase FSM fills the space between FE1
+      // and FE2.  FE1 precedes miss_cycle by exactly 1 cycle (the request).
+      //   [fe1 .. miss)   = F1 (the fetch request cycle)
+      //   [miss .. addr)  = miss band
+      //   [addr .. fill)  = addr band
+      //   [fill .. wren)  = fill band
+      //   [wren .. rden)  = wren band
+      //   [rden .. rden+1) = FE2 (the refill-complete read-out cycle)
+      {
+        key: 'fe1_miss', label: 'F1',
+        start: 'fe1', end: 'ic_miss_cycle', color: COL.fe1,
+        opts: {
+          requires: i => i.fe1 != null && i.ic_miss_cycle != null
+            && i.ic_miss_cycle > i.fe1
+        }
+      },
+      {
+        key: 'miss', label: 'miss',
+        start: 'ic_miss_cycle', end: 'ic_addr_cycle', color: COL.miss,
+        opts: { requires: i => i.ic_miss_cycle != null && i.ic_addr_cycle != null }
+      },
+      {
+        key: 'addr', label: 'addr',
+        start: 'ic_addr_cycle', end: 'ic_fill_cycle', color: COL.addr,
+        opts: { requires: i => i.ic_addr_cycle != null && i.ic_fill_cycle != null }
+      },
+      {
+        key: 'fill', label: 'fill',
+        start: 'ic_fill_cycle', end: 'ic_wren_cycle', color: COL.fill,
+        opts: { requires: i => i.ic_fill_cycle != null && i.ic_wren_cycle != null }
+      },
+      {
+        key: 'wren', label: 'wren',
+        start: 'ic_wren_cycle', end: 'ic_rden_cycle', color: COL.wren,
+        opts: {
+          requires: i => i.ic_wren_cycle != null && i.ic_rden_cycle != null
+            && i.ic_rden_cycle > i.ic_wren_cycle
+        }
+      },
+      // v31 RULE 1: HIT — FE1 is the request cycle (1 cycle).  Extractor
+      // guarantees fe2 = fe1 + 1 for hits, so this is always a 1-cycle cell.
+      // The ticket's actual vld_cycle (which may be later due to IQ
+      // backpressure) has been shifted into the IQ stage below.
+      {
+        key: 'fe1', label: 'F1',
+        start: 'fe1', end: 'fe2', color: COL.fe1,
+        opts: {
+          requires: i => i.fe1 != null && i.fe2 != null && i.fe2 > i.fe1
+            && i.ic_miss_cycle == null
+        }
+      },
+      // FE2 — 1-cycle cell at the fe2 position.
+      {
+        key: 'fe2', label: 'F2',
+        start: 'fe2', end: null, color: COL.fe2,
+        opts: { requires: i => i.fe2 != null, width: 1 }
+      },
+      // v31 RULE 2: IQ STALL — fills ENTIRE space from fe2+1 to issue_cycle.
+      // This covers both IQ wait time AND read-operands stall time (they
+      // are indistinguishable from a microarch perspective — the instruction
+      // is in the queue, waiting for decode and scoreboard readiness).
+      {
+        key: 'iq', label: 'IQ',
+        start: 'fe2', end: 'issue_cycle', color: COL.iq,
+        opts: {
+          requires: i => i.fe2 != null && i.issue_cycle != null
+            && i.issue_cycle > i.fe2 + 1,
+          startOffset: 1,
+          dotted: true
+        }
+      },
+      {
+        key: 'dec', label: 'D',
+        start: 'decode_cycle', end: null, color: COL.dec,
+        opts: { requires: i => i.decode_cycle != null, width: 1 }
+      },
+      {
+        key: 'iss', label: 'I',
+        start: 'issue_cycle', end: null, color: COL.iss,
+        opts: { requires: i => i.issue_cycle != null, width: 1 }
+      },
+      // v31 RULE 4: EX fills ENTIRE space from issue+1 to wb.
+      {
+        key: 'ex', label: 'EX',
+        start: 'issue_cycle', end: 'wb_cycle', color: null,
+        opts: {
+          requires: i => i.issue_cycle != null && i.wb_cycle != null
+            && i.wb_cycle > i.issue_cycle + 1,
+          startOffset: 1,
+          colorFn: i => FU_COLOR[i.fu] || FU_COLOR.__default
+        }
+      },
+      // D-cache miss stall — overlays the EX bar (painted on top).
+      {
+        key: 'dmiss', label: 'dmiss',
+        start: 'dcache_miss_start', end: 'dcache_miss_end', color: COL.dmiss,
+        opts: {
+          requires: i => i.dcache_miss === true
+            && i.dcache_miss_start != null
+            && i.dcache_miss_end != null
+        }
+      },
+      {
+        key: 'wb', label: 'W',
+        start: 'wb_cycle', end: null, color: COL.wb,
+        opts: { requires: i => i.wb_cycle != null, width: 1 }
+      },
+      {
+        key: 'cm', label: 'C',
+        start: 'commit_cycle', end: null, color: COL.cm,
+        opts: {
+          requires: i => i.commit_cycle != null, width: 1,
+          colorFn: i => i.wbuf_full_at_commit ? COL.cm_stall : COL.cm,
+          labelFn: i => i.wbuf_full_at_commit ? 'C!' : 'C'
+        }
+      },
+    ];
 
-const dom = {
-  bg:      document.getElementById('bg'),
-  bars:    document.getElementById('bars'),
-  hover:   document.getElementById('hover'),
-  minimap: document.getElementById('minimap'),
-  minimapView: document.getElementById('minimap-view'),
-  main:    document.getElementById('main'),
-  tip:     document.getElementById('tip'),
-  stats:   document.getElementById('stats'),
-  zoom:    document.getElementById('zoom'),
-  zoomReadout: document.getElementById('zoom-readout'),
-  legend:  document.getElementById('legend'),
-  minimapWrap: document.getElementById('minimap-wrap'),
-  file:    document.getElementById('file'),
-  fit:     document.getElementById('fit'),
-  gotoMiss:document.getElementById('goto-miss'),
-  gotoDmiss:document.getElementById('goto-dmiss'),
-};
+    const dom = {
+      bg: document.getElementById('bg'),
+      bars: document.getElementById('bars'),
+      hover: document.getElementById('hover'),
+      minimap: document.getElementById('minimap'),
+      minimapView: document.getElementById('minimap-view'),
+      main: document.getElementById('main'),
+      tip: document.getElementById('tip'),
+      stats: document.getElementById('stats'),
+      zoom: document.getElementById('zoom'),
+      zoomReadout: document.getElementById('zoom-readout'),
+      legend: document.getElementById('legend'),
+      minimapWrap: document.getElementById('minimap-wrap'),
+      file: document.getElementById('file'),
+      fit: document.getElementById('fit'),
+      gotoMiss: document.getElementById('goto-miss'),
+      gotoDmiss: document.getElementById('goto-dmiss'),
+    };
 
-/* INVARIANT 1: ONE cycleToX function */
-function cycleToX(c) { return state.padL + (c - state.viewStart) * state.pxPerCycle; }
-function xToCycle(x) { return state.viewStart + (x - state.padL) / state.pxPerCycle; }
-function rowToY(r)   { return state.padT + r * state.rowH - state.scrollY; }
-function yToRow(y)   { return Math.floor((y - state.padT + state.scrollY) / state.rowH); }
-function visibleRowRange(H) {
-  const r0 = Math.max(0, yToRow(state.padT));
-  const r1 = Math.min(state.insts.length - 1, yToRow(H) + 1);
-  return [r0, r1];
-}
-function visibleCycleRange(W) {
-  return [state.viewStart - 1, state.viewStart + (W - state.padL) / state.pxPerCycle + 1];
-}
-
-/* INVARIANT 2, 3, 4: Build segments ONCE from JSON */
-function buildSegments(instructions) {
-  const segsByRow = [];
-  const rowMetrics = [];
-  for (let r = 0; r < instructions.length; r++) {
-    const inst = instructions[r];
-    const segs = [];
-    for (const d of STAGE_DEFS) {
-      const opts = d.opts || {};
-      if (opts.requires && !opts.requires(inst)) continue;
-      let s = inst[d.start];
-      if (s == null) continue;
-      if (opts.startOffset) s = s + opts.startOffset;
-      let e;
-      if (opts.width !== undefined) e = s + opts.width;
-      else if (d.end) e = inst[d.end];
-      else e = s + 1;
-      if (e == null) continue;
-      if (e <= s) continue;
-      // maxWidth clamp: cap the VISUAL width of the segment.  Used for
-      // F1 so that IQ-backpressure time doesn't inflate the fetch bar.
-      if (opts.maxWidth !== undefined && (e - s) > opts.maxWidth) {
-        e = s + opts.maxWidth;
-      }
-      const color = (opts.colorFn ? opts.colorFn(inst) : d.color) || FU_COLOR.__default;
-      const label = (opts.labelFn ? opts.labelFn(inst) : d.label);
-      segs.push({ s, e, label, color, key: d.key, inst });
+    /* INVARIANT 1: ONE cycleToX function */
+    function cycleToX(c) { return state.padL + (c - state.viewStart) * state.pxPerCycle; }
+    function xToCycle(x) { return state.viewStart + (x - state.padL) / state.pxPerCycle; }
+    function rowToY(r) { return state.padT + r * state.rowH - state.scrollY; }
+    function yToRow(y) { return Math.floor((y - state.padT + state.scrollY) / state.rowH); }
+    function visibleRowRange(H) {
+      const r0 = Math.max(0, yToRow(state.padT));
+      const r1 = Math.min(state.insts.length - 1, yToRow(H) + 1);
+      return [r0, r1];
     }
-    // INVARIANT 4: N-way split-cell.  Group segments that share the exact
-    // same (start, end) and are 1-cycle point events.  Draw each group
-    // member as a 1/N-width slice of the cycle column with a divider.
-    // This handles both the common W/C case (wb == commit) and the
-    // 0-cycle execute case where I, EX, and W all land at the same cycle.
-    segs.sort((a, b) => a.s - b.s);
-    let k = 0;
-    while (k < segs.length) {
-      const group = [segs[k]];
-      let m = k + 1;
-      while (m < segs.length
-             && segs[m].s === segs[k].s
-             && segs[m].e === segs[k].e
-             && (segs[k].e - segs[k].s) === 1) {
-        group.push(segs[m]);
-        m++;
+    function visibleCycleRange(W) {
+      return [state.viewStart - 1, state.viewStart + (W - state.padL) / state.pxPerCycle + 1];
+    }
+
+    /* INVARIANT 2, 3, 4: Build segments ONCE from JSON */
+    function buildSegments(instructions) {
+      const segsByRow = [];
+      const rowMetrics = [];
+      for (let r = 0; r < instructions.length; r++) {
+        const inst = instructions[r];
+        const segs = [];
+        for (const d of STAGE_DEFS) {
+          const opts = d.opts || {};
+          if (opts.requires && !opts.requires(inst)) continue;
+          let s = inst[d.start];
+          if (s == null) continue;
+          if (opts.startOffset) s = s + opts.startOffset;
+          let e;
+          if (opts.width !== undefined) e = s + opts.width;
+          else if (d.end) e = inst[d.end];
+          else e = s + 1;
+          if (e == null) continue;
+          if (e <= s) continue;
+          // maxWidth clamp: cap the VISUAL width of the segment.  Used for
+          // F1 so that IQ-backpressure time doesn't inflate the fetch bar.
+          if (opts.maxWidth !== undefined && (e - s) > opts.maxWidth) {
+            e = s + opts.maxWidth;
+          }
+          const color = (opts.colorFn ? opts.colorFn(inst) : d.color) || FU_COLOR.__default;
+          const label = (opts.labelFn ? opts.labelFn(inst) : d.label);
+          segs.push({ s, e, label, color, key: d.key, inst });
+        }
+        // INVARIANT 4: N-way split-cell.  Group segments that share the exact
+        // same (start, end) and are 1-cycle point events.  Draw each group
+        // member as a 1/N-width slice of the cycle column with a divider.
+        // This handles both the common W/C case (wb == commit) and the
+        // 0-cycle execute case where I, EX, and W all land at the same cycle.
+        segs.sort((a, b) => a.s - b.s);
+        let k = 0;
+        while (k < segs.length) {
+          const group = [segs[k]];
+          let m = k + 1;
+          while (m < segs.length
+            && segs[m].s === segs[k].s
+            && segs[m].e === segs[k].e
+            && (segs[k].e - segs[k].s) === 1) {
+            group.push(segs[m]);
+            m++;
+          }
+          if (group.length >= 2) {
+            for (let g = 0; g < group.length; g++) {
+              group[g].splitGroup = group;
+              group[g].splitIndex = g;
+              group[g].splitCount = group.length;
+            }
+          }
+          k = m;
+        }
+        segsByRow.push(segs);
+        let minS = Infinity, maxE = -Infinity;
+        for (const s of segs) { if (s.s < minS) minS = s.s; if (s.e > maxE) maxE = s.e; }
+        rowMetrics.push({ minS, maxE });
       }
-      if (group.length >= 2) {
-        for (let g = 0; g < group.length; g++) {
-          group[g].splitGroup = group;
-          group[g].splitIndex = g;
-          group[g].splitCount = group.length;
+      return { segsByRow, rowMetrics };
+    }
+
+    function loadJSON(data) {
+      let insts = data.instructions || [];
+      // DIRECTIVE 1: the extractor already sorted instances by FETCH ORDER
+      // and assigned UIDs in that order.  Sort by UID to preserve that
+      // ordering (not commit_cycle, which can shuffle rows when stores
+      // commit late).
+      insts.sort((a, b) => (a.uid ?? 0) - (b.uid ?? 0));
+      state.insts = insts;
+      const { segsByRow, rowMetrics } = buildSegments(insts);
+      state.segsByRow = segsByRow;
+      state.rowMetrics = rowMetrics;
+      let minC = Infinity, maxC = -Infinity;
+      for (const rm of rowMetrics) {
+        if (rm.minS < minC) minC = rm.minS;
+        if (rm.maxE > maxC) maxC = rm.maxE;
+      }
+      if (!isFinite(minC)) { minC = 0; maxC = 1; }
+      state.firstCycle = minC;
+      state.totalCycles = Math.max(1, maxC - minC);
+      state.viewStart = minC;
+      state.scrollY = 0;
+
+      const n = insts.length;
+      const lastCc = insts.length ? insts[insts.length - 1].commit_cycle : 0;
+      const firstIss = insts.length ? (insts[0].issue_cycle ?? insts[0].commit_cycle) : 0;
+      const cycSpan = lastCc && firstIss ? (lastCc - firstIss) : 1;
+      const ipc = cycSpan > 0 ? (n / cycSpan).toFixed(2) : '0';
+      const missCount = insts.filter(i => i.ic_miss_cycle != null).length;
+      const dmissCount = insts.filter(i => i.dcache_miss).length;
+      const iqStallRows = insts.filter(i => (i.iq_stall_cycles || 0) > 0).length;
+      dom.stats.textContent =
+        `${n} instr · ${state.totalCycles} cyc · IPC=${ipc} · ${missCount} i-miss · ${dmissCount} d-miss · ${iqStallRows} iq-stall`;
+
+      renderLegend();
+      scheduleRender();
+      renderMinimap();
+    }
+
+    function renderLegend() {
+      const items = [
+        ['redir', COL.redir], ['miss', COL.miss], ['addr', COL.addr],
+        ['fill', COL.fill], ['wren', COL.wren],
+        ['F1', COL.fe1], ['F2', COL.fe2], ['IQ', COL.iq],
+        ['D', COL.dec], ['RO', COL.ro], ['I', COL.iss],
+        ['ALU', FU_COLOR.ALU], ['LOAD', FU_COLOR.LOAD], ['STORE', FU_COLOR.STORE],
+        ['FPU', FU_COLOR.FPU], ['FDIV', FU_COLOR.FDIVSQRT], ['BR', FU_COLOR.CTRL],
+        ['MULT', FU_COLOR.MULT], ['dmiss', COL.dmiss],
+        ['W', COL.wb], ['C', COL.cm], ['C!', COL.cm_stall],
+      ];
+      dom.legend.innerHTML = items.map(([l, c]) =>
+        `<span class="sw"><i style="background:${c}"></i>${l}</span>`).join('');
+    }
+
+    function sizeCanvas(c, opaque) {
+      const dpr = window.devicePixelRatio || 1;
+      const r = c.getBoundingClientRect();
+      if (c.width !== (r.width * dpr | 0) || c.height !== (r.height * dpr | 0)) {
+        c.width = Math.max(1, r.width * dpr | 0);
+        c.height = Math.max(1, r.height * dpr | 0);
+      }
+      const ctx = c.getContext('2d', { alpha: !opaque });
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return [ctx, r.width, r.height];
+    }
+
+    let rafPending = false;
+    function scheduleRender() {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; render(); });
+    }
+    let hoverRafPending = false;
+    function scheduleHover() {
+      if (hoverRafPending) return;
+      hoverRafPending = true;
+      requestAnimationFrame(() => { hoverRafPending = false; renderHover(); });
+    }
+
+    function render() {
+      sizeMainCanvases();
+      renderBG();
+      renderBars();
+      updateMinimapView();
+    }
+    function sizeMainCanvases() {
+      const r = dom.main.getBoundingClientRect();
+      state.mainW = r.width;
+      state.mainH = r.height;
+      for (const c of [dom.bg, dom.bars, dom.hover]) {
+        c.style.width = r.width + 'px';
+        c.style.height = r.height + 'px';
+      }
+    }
+
+    function renderBG() {
+      const [ctx, W, H] = sizeCanvas(dom.bg, true);
+      ctx.fillStyle = COL.bg;
+      ctx.fillRect(0, 0, W, H);
+      const [r0, r1] = visibleRowRange(H);
+      for (let r = r0; r <= r1; r++) {
+        if ((r & 1) === 0) continue;
+        const y = rowToY(r);
+        ctx.fillStyle = COL.row_alt;
+        ctx.fillRect(state.padL, y, W - state.padL, state.rowH);
+      }
+      const [c0, c1] = visibleCycleRange(W);
+      const zoom = state.pxPerCycle;
+      const step = zoom >= 18 ? 1 : zoom >= 6 ? 5 : zoom >= 2 ? 10 : 50;
+      const stepMajor = step * 5;
+      const cStart = Math.floor(c0 / step) * step;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.strokeStyle = COL.grid;
+      for (let c = cStart; c <= c1; c += step) {
+        if (c % stepMajor === 0) continue;
+        const x = Math.round(cycleToX(c)) + 0.5;
+        ctx.moveTo(x, state.padT);
+        ctx.lineTo(x, H);
+      }
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.strokeStyle = COL.grid_major;
+      for (let c = Math.ceil(c0 / stepMajor) * stepMajor; c <= c1; c += stepMajor) {
+        const x = Math.round(cycleToX(c)) + 0.5;
+        ctx.moveTo(x, state.padT);
+        ctx.lineTo(x, H);
+      }
+      ctx.stroke();
+      ctx.fillStyle = COL.bg;
+      ctx.fillRect(state.padL, 0, W - state.padL, state.padT);
+      ctx.fillStyle = COL.axis;
+      ctx.font = '10px ui-monospace, "JetBrains Mono", monospace';
+      ctx.textBaseline = 'middle';
+      for (let c = Math.ceil(c0 / stepMajor) * stepMajor; c <= c1; c += stepMajor) {
+        const x = Math.round(cycleToX(c));
+        ctx.fillText(String(c), x + 2, state.padT / 2);
+      }
+      ctx.strokeStyle = COL.line;
+      ctx.beginPath();
+      ctx.moveTo(0, state.padT + 0.5);
+      ctx.lineTo(W, state.padT + 0.5);
+      ctx.stroke();
+      ctx.fillStyle = COL.bg;
+      ctx.fillRect(0, 0, state.padL, H);
+      for (let r = r0; r <= r1; r++) {
+        if ((r & 1) === 0) continue;
+        const y = rowToY(r);
+        ctx.fillStyle = COL.row_alt;
+        ctx.fillRect(0, y, state.padL, state.rowH);
+      }
+      ctx.fillStyle = COL.label_row;
+      ctx.font = '11px ui-monospace, "JetBrains Mono", monospace';
+      for (let r = r0; r <= r1; r++) {
+        const inst = state.insts[r];
+        if (!inst) continue;
+        const y = rowToY(r) + state.rowH / 2;
+        ctx.fillStyle = '#6a7080';
+        ctx.textAlign = 'right';
+        ctx.fillText(String(inst.uid ?? r), 34, y);
+        ctx.fillStyle = COL.label_row;
+        ctx.textAlign = 'left';
+        const pc = inst.pc || '';
+        ctx.fillText(pc, 42, y);
+        const mn = (inst.mnemonic || '').slice(0, 22);
+        ctx.fillStyle = '#96a0b0';
+        ctx.fillText(mn, 42 + 92, y);
+      }
+      ctx.strokeStyle = COL.line;
+      ctx.beginPath();
+      ctx.moveTo(state.padL - 0.5, 0);
+      ctx.lineTo(state.padL - 0.5, H);
+      ctx.stroke();
+    }
+
+    function renderBars() {
+      const [ctx, W, H] = sizeCanvas(dom.bars, false);
+      ctx.clearRect(0, 0, W, H);
+      const [r0, r1] = visibleRowRange(H);
+      const [c0, c1] = visibleCycleRange(W);
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(state.padL, state.padT, W - state.padL, H - state.padT);
+      ctx.clip();
+
+      const byColor = new Map();
+      const labelQueue = [];
+      const dottedRects = [];   // v31-C: IQ dotted pattern
+      const hitRects = [];      // v31-C: 1-cycle hit white border
+
+      for (let r = r0; r <= r1; r++) {
+        const segs = state.segsByRow[r];
+        if (!segs) continue;
+        const rm = state.rowMetrics[r];
+        if (rm.maxE < c0 || rm.minS > c1) continue;
+        const y = Math.round(rowToY(r)) + 1;
+        const h = state.rowH - 3;
+        for (const seg of segs) {
+          if (seg.e < c0 || seg.s > c1) continue;
+          const x0 = Math.round(cycleToX(seg.s));
+          const x1 = Math.round(cycleToX(seg.e));
+          const fullW = Math.max(2, x1 - x0);
+
+          if (seg.splitCount) {
+            const N = seg.splitCount;
+            const idx = seg.splitIndex;
+            const sliceW = Math.max(1, Math.floor(fullW / N));
+            const xRect = x0 + idx * sliceW;
+            const wRect = (idx === N - 1) ? Math.max(1, fullW - idx * sliceW) : sliceW;
+            const labelText = seg.label.charAt(0);
+            if (!byColor.has(seg.color)) byColor.set(seg.color, []);
+            byColor.get(seg.color).push([xRect, y, wRect, h]);
+            if (wRect >= 4) {
+              labelQueue.push({ x0: xRect, y, w: wRect, h, label: labelText, forceShow: true });
+            }
+            continue;
+          }
+
+          if (!byColor.has(seg.color)) byColor.set(seg.color, []);
+          byColor.get(seg.color).push([x0, y, fullW, h]);
+          // Track dotted segments for post-fill pattern overlay (v31-C).
+          if (seg.dotted) {
+            dottedRects.push([x0, y, fullW, h]);
+          }
+          // Track hit-cell white left border (v31-C).
+          if (seg.hitMark) {
+            hitRects.push([x0, y, fullW, h]);
+          }
+          if (fullW >= 8 && seg.label) {
+            labelQueue.push({ x0, y, w: fullW, h, label: seg.label });
+          }
         }
       }
-      k = m;
+      for (const [color, rects] of byColor) {
+        ctx.fillStyle = color;
+        for (const [x, y, w, h] of rects) ctx.fillRect(x, y, w, h);
+      }
+
+      // v31-C: Dotted pattern overlay on IQ stall bands.
+      // Paint small dark dots on top of the brown IQ fills so it reads as
+      // "stalled" even at a glance.
+      if (dottedRects.length) {
+        ctx.fillStyle = 'rgba(0,0,0,0.35)';
+        for (const [x, y, w, h] of dottedRects) {
+          // Dot grid: 4px spacing horizontally, 1px dots on middle line.
+          const dotY = y + Math.floor(h / 2);
+          for (let dx = x + 2; dx < x + w - 1; dx += 4) {
+            ctx.fillRect(dx, dotY, 1, 1);
+          }
+          // Secondary dot row for thicker stalls
+          if (h >= 12) {
+            const dotY2 = y + Math.floor(h * 0.25);
+            const dotY3 = y + Math.floor(h * 0.75);
+            for (let dx = x + 4; dx < x + w - 1; dx += 4) {
+              ctx.fillRect(dx, dotY2, 1, 1);
+              ctx.fillRect(dx, dotY3, 1, 1);
+            }
+          }
+        }
+      }
+
+      // v31-C: 1-cycle Hit cells get a solid white left border.
+      if (hitRects.length) {
+        ctx.fillStyle = '#ffffff';
+        for (const [x, y, w, h] of hitRects) {
+          ctx.fillRect(x, y, 2, h);  // 2px wide left border in solid white
+        }
+      }
+      // Split-cell dividers: draw N-1 vertical lines across each split group.
+      ctx.strokeStyle = 'rgba(0,0,0,0.65)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      for (let r = r0; r <= r1; r++) {
+        const segs = state.segsByRow[r];
+        if (!segs) continue;
+        const y = Math.round(rowToY(r)) + 1;
+        const h = state.rowH - 3;
+        for (const seg of segs) {
+          if (seg.splitCount && seg.splitIndex === 0) {
+            if (seg.e < c0 || seg.s > c1) continue;
+            const x0 = Math.round(cycleToX(seg.s));
+            const x1 = Math.round(cycleToX(seg.e));
+            const fullW = Math.max(2, x1 - x0);
+            const N = seg.splitCount;
+            const sliceW = Math.max(1, Math.floor(fullW / N));
+            for (let j = 1; j < N; j++) {
+              const dx = x0 + j * sliceW + 0.5;
+              ctx.moveTo(dx, y);
+              ctx.lineTo(dx, y + h);
+            }
+          }
+        }
+      }
+      ctx.stroke();
+
+      // ── DIRECTIVE 5: anchor the mnemonic at the very beginning of F1.
+      // Render as a small faint label just to the LEFT of the F1 bar,
+      // in the gap between rows.  If zoom is low (bars too narrow), skip.
+      if (state.pxPerCycle >= 16) {
+        ctx.font = '9px ui-monospace, "JetBrains Mono", monospace';
+        ctx.textBaseline = 'alphabetic';
+        ctx.textAlign = 'right';
+        for (let r = r0; r <= r1; r++) {
+          const inst = state.insts[r];
+          if (!inst) continue;
+          const anchorCyc = (inst.fe1 != null) ? inst.fe1
+            : (inst.issue_cycle != null) ? inst.issue_cycle : null;
+          if (anchorCyc == null) continue;
+          if (anchorCyc > c1 || anchorCyc < c0 - 30) continue;
+          const ax = Math.round(cycleToX(anchorCyc));
+          const ay = Math.round(rowToY(r));
+          const mn = (inst.mnemonic || '').trim();
+          if (!mn) continue;
+          const text = mn.length > 14 ? mn.slice(0, 14) : mn;
+          // Render to the LEFT of the F1 bar, above the row midline.
+          ctx.fillStyle = 'rgba(10,14,20,0.75)';
+          const tw = ctx.measureText(text).width + 3;
+          if (ax - tw - 1 > state.padL) {
+            ctx.fillRect(ax - tw - 1, ay, tw, 8);
+            ctx.fillStyle = '#b0b8c4';
+            ctx.fillText(text, ax - 2, ay + 7);
+          }
+        }
+      }
+
+      ctx.font = '10px ui-monospace, "JetBrains Mono", monospace';
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      for (const { x0, y, w, h, label, forceShow } of labelQueue) {
+        const maxChars = Math.max(1, (w - 2) / 6 | 0);
+        const show = forceShow ? label.charAt(0)
+          : (label.length > maxChars ? label.slice(0, maxChars) : label);
+        const ly = y + h / 2;
+        ctx.fillStyle = 'rgba(0,0,0,0.65)';
+        ctx.fillText(show, x0 + 2, ly + 0.5);
+        ctx.fillStyle = '#f2f4f8';
+        ctx.fillText(show, x0 + 2, ly);
+      }
+      ctx.restore();
     }
-    segsByRow.push(segs);
-    let minS = Infinity, maxE = -Infinity;
-    for (const s of segs) { if (s.s < minS) minS = s.s; if (s.e > maxE) maxE = s.e; }
-    rowMetrics.push({ minS, maxE });
-  }
-  return { segsByRow, rowMetrics };
-}
 
-function loadJSON(data) {
-  let insts = data.instructions || [];
-  // DIRECTIVE 1: the extractor already sorted instances by FETCH ORDER
-  // and assigned UIDs in that order.  Sort by UID to preserve that
-  // ordering (not commit_cycle, which can shuffle rows when stores
-  // commit late).
-  insts.sort((a, b) => (a.uid ?? 0) - (b.uid ?? 0));
-  state.insts = insts;
-  const { segsByRow, rowMetrics } = buildSegments(insts);
-  state.segsByRow = segsByRow;
-  state.rowMetrics = rowMetrics;
-  let minC = Infinity, maxC = -Infinity;
-  for (const rm of rowMetrics) {
-    if (rm.minS < minC) minC = rm.minS;
-    if (rm.maxE > maxC) maxC = rm.maxE;
-  }
-  if (!isFinite(minC)) { minC = 0; maxC = 1; }
-  state.firstCycle = minC;
-  state.totalCycles = Math.max(1, maxC - minC);
-  state.viewStart = minC;
-  state.scrollY = 0;
-
-  const n = insts.length;
-  const lastCc = insts.length ? insts[insts.length - 1].commit_cycle : 0;
-  const firstIss = insts.length ? (insts[0].issue_cycle ?? insts[0].commit_cycle) : 0;
-  const cycSpan = lastCc && firstIss ? (lastCc - firstIss) : 1;
-  const ipc = cycSpan > 0 ? (n / cycSpan).toFixed(2) : '0';
-  const missCount  = insts.filter(i => i.ic_miss_cycle != null).length;
-  const dmissCount = insts.filter(i => i.dcache_miss).length;
-  const iqStallRows = insts.filter(i => (i.iq_stall_cycles || 0) > 0).length;
-  dom.stats.textContent =
-    `${n} instr · ${state.totalCycles} cyc · IPC=${ipc} · ${missCount} i-miss · ${dmissCount} d-miss · ${iqStallRows} iq-stall`;
-
-  renderLegend();
-  scheduleRender();
-  renderMinimap();
-}
-
-function renderLegend() {
-  const items = [
-    ['redir', COL.redir], ['miss', COL.miss], ['addr', COL.addr],
-    ['fill', COL.fill], ['wren', COL.wren],
-    ['F1', COL.fe1], ['F2', COL.fe2], ['IQ', COL.iq],
-    ['D', COL.dec], ['RO', COL.ro], ['I', COL.iss],
-    ['ALU', FU_COLOR.ALU], ['LOAD', FU_COLOR.LOAD], ['STORE', FU_COLOR.STORE],
-    ['FPU', FU_COLOR.FPU], ['FDIV', FU_COLOR.FDIVSQRT], ['BR', FU_COLOR.CTRL],
-    ['MULT', FU_COLOR.MULT], ['dmiss', COL.dmiss],
-    ['W', COL.wb], ['C', COL.cm], ['C!', COL.cm_stall],
-  ];
-  dom.legend.innerHTML = items.map(([l, c]) =>
-    `<span class="sw"><i style="background:${c}"></i>${l}</span>`).join('');
-}
-
-function sizeCanvas(c, opaque) {
-  const dpr = window.devicePixelRatio || 1;
-  const r = c.getBoundingClientRect();
-  if (c.width !== (r.width * dpr | 0) || c.height !== (r.height * dpr | 0)) {
-    c.width  = Math.max(1, r.width  * dpr | 0);
-    c.height = Math.max(1, r.height * dpr | 0);
-  }
-  const ctx = c.getContext('2d', { alpha: !opaque });
-  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-  return [ctx, r.width, r.height];
-}
-
-let rafPending = false;
-function scheduleRender() {
-  if (rafPending) return;
-  rafPending = true;
-  requestAnimationFrame(() => { rafPending = false; render(); });
-}
-let hoverRafPending = false;
-function scheduleHover() {
-  if (hoverRafPending) return;
-  hoverRafPending = true;
-  requestAnimationFrame(() => { hoverRafPending = false; renderHover(); });
-}
-
-function render() {
-  sizeMainCanvases();
-  renderBG();
-  renderBars();
-  updateMinimapView();
-}
-function sizeMainCanvases() {
-  const r = dom.main.getBoundingClientRect();
-  state.mainW = r.width;
-  state.mainH = r.height;
-  for (const c of [dom.bg, dom.bars, dom.hover]) {
-    c.style.width = r.width + 'px';
-    c.style.height = r.height + 'px';
-  }
-}
-
-function renderBG() {
-  const [ctx, W, H] = sizeCanvas(dom.bg, true);
-  ctx.fillStyle = COL.bg;
-  ctx.fillRect(0, 0, W, H);
-  const [r0, r1] = visibleRowRange(H);
-  for (let r = r0; r <= r1; r++) {
-    if ((r & 1) === 0) continue;
-    const y = rowToY(r);
-    ctx.fillStyle = COL.row_alt;
-    ctx.fillRect(state.padL, y, W - state.padL, state.rowH);
-  }
-  const [c0, c1] = visibleCycleRange(W);
-  const zoom = state.pxPerCycle;
-  const step = zoom >= 18 ? 1 : zoom >= 6 ? 5 : zoom >= 2 ? 10 : 50;
-  const stepMajor = step * 5;
-  const cStart = Math.floor(c0 / step) * step;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  ctx.strokeStyle = COL.grid;
-  for (let c = cStart; c <= c1; c += step) {
-    if (c % stepMajor === 0) continue;
-    const x = Math.round(cycleToX(c)) + 0.5;
-    ctx.moveTo(x, state.padT);
-    ctx.lineTo(x, H);
-  }
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.strokeStyle = COL.grid_major;
-  for (let c = Math.ceil(c0 / stepMajor) * stepMajor; c <= c1; c += stepMajor) {
-    const x = Math.round(cycleToX(c)) + 0.5;
-    ctx.moveTo(x, state.padT);
-    ctx.lineTo(x, H);
-  }
-  ctx.stroke();
-  ctx.fillStyle = COL.bg;
-  ctx.fillRect(state.padL, 0, W - state.padL, state.padT);
-  ctx.fillStyle = COL.axis;
-  ctx.font = '10px ui-monospace, "JetBrains Mono", monospace';
-  ctx.textBaseline = 'middle';
-  for (let c = Math.ceil(c0 / stepMajor) * stepMajor; c <= c1; c += stepMajor) {
-    const x = Math.round(cycleToX(c));
-    ctx.fillText(String(c), x + 2, state.padT / 2);
-  }
-  ctx.strokeStyle = COL.line;
-  ctx.beginPath();
-  ctx.moveTo(0, state.padT + 0.5);
-  ctx.lineTo(W, state.padT + 0.5);
-  ctx.stroke();
-  ctx.fillStyle = COL.bg;
-  ctx.fillRect(0, 0, state.padL, H);
-  for (let r = r0; r <= r1; r++) {
-    if ((r & 1) === 0) continue;
-    const y = rowToY(r);
-    ctx.fillStyle = COL.row_alt;
-    ctx.fillRect(0, y, state.padL, state.rowH);
-  }
-  ctx.fillStyle = COL.label_row;
-  ctx.font = '11px ui-monospace, "JetBrains Mono", monospace';
-  for (let r = r0; r <= r1; r++) {
-    const inst = state.insts[r];
-    if (!inst) continue;
-    const y = rowToY(r) + state.rowH / 2;
-    ctx.fillStyle = '#6a7080';
-    ctx.textAlign = 'right';
-    ctx.fillText(String(inst.uid ?? r), 34, y);
-    ctx.fillStyle = COL.label_row;
-    ctx.textAlign = 'left';
-    const pc = inst.pc || '';
-    ctx.fillText(pc, 42, y);
-    const mn = (inst.mnemonic || '').slice(0, 22);
-    ctx.fillStyle = '#96a0b0';
-    ctx.fillText(mn, 42 + 92, y);
-  }
-  ctx.strokeStyle = COL.line;
-  ctx.beginPath();
-  ctx.moveTo(state.padL - 0.5, 0);
-  ctx.lineTo(state.padL - 0.5, H);
-  ctx.stroke();
-}
-
-function renderBars() {
-  const [ctx, W, H] = sizeCanvas(dom.bars, false);
-  ctx.clearRect(0, 0, W, H);
-  const [r0, r1] = visibleRowRange(H);
-  const [c0, c1] = visibleCycleRange(W);
-  ctx.save();
-  ctx.beginPath();
-  ctx.rect(state.padL, state.padT, W - state.padL, H - state.padT);
-  ctx.clip();
-
-  const byColor = new Map();
-  const labelQueue = [];
-  const dottedRects = [];   // v31-C: IQ dotted pattern
-  const hitRects = [];      // v31-C: 1-cycle hit white border
-
-  for (let r = r0; r <= r1; r++) {
-    const segs = state.segsByRow[r];
-    if (!segs) continue;
-    const rm = state.rowMetrics[r];
-    if (rm.maxE < c0 || rm.minS > c1) continue;
-    const y = Math.round(rowToY(r)) + 1;
-    const h = state.rowH - 3;
-    for (const seg of segs) {
-      if (seg.e < c0 || seg.s > c1) continue;
+    function renderHover() {
+      const [ctx, W, H] = sizeCanvas(dom.hover, false);
+      ctx.clearRect(0, 0, W, H);
+      if (!state.hoverSeg) {
+        dom.tip.style.display = 'none';
+        return;
+      }
+      const { seg, rowIdx, mouseX, mouseY } = state.hoverSeg;
       const x0 = Math.round(cycleToX(seg.s));
       const x1 = Math.round(cycleToX(seg.e));
-      const fullW = Math.max(2, x1 - x0);
+      const w = Math.max(2, x1 - x0);
+      const y = Math.round(rowToY(rowIdx)) + 1;
+      const h = state.rowH - 3;
+      ctx.strokeStyle = '#ffffffcc';
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(x0 - 0.5, y - 0.5, w + 1, h + 1);
+      const guideX = Math.round(mouseX) + 0.5;
+      ctx.strokeStyle = '#63b3ed55';
+      ctx.beginPath();
+      ctx.moveTo(guideX, state.padT);
+      ctx.lineTo(guideX, H);
+      ctx.stroke();
 
-      if (seg.splitCount) {
-        const N = seg.splitCount;
-        const idx = seg.splitIndex;
-        const sliceW = Math.max(1, Math.floor(fullW / N));
-        const xRect = x0 + idx * sliceW;
-        const wRect = (idx === N - 1) ? Math.max(1, fullW - idx * sliceW) : sliceW;
-        const labelText = seg.label.charAt(0);
-        if (!byColor.has(seg.color)) byColor.set(seg.color, []);
-        byColor.get(seg.color).push([xRect, y, wRect, h]);
-        if (wRect >= 4) {
-          labelQueue.push({ x0: xRect, y, w: wRect, h, label: labelText, forceShow: true });
-        }
-        continue;
+      const inst = seg.inst;
+      const dur = seg.e - seg.s;
+      const lines = [
+        `#${inst.uid}  ${inst.pc}  ${inst.mnemonic || ''}`,
+        `stage: ${seg.label}   fu: ${inst.fu}   ${seg.s}..${seg.e} (${dur}c)`,
+      ];
+      const fmt = v => v == null ? '—' : String(v);
+      lines.push(
+        `fe1=${fmt(inst.fe1)} fe2=${fmt(inst.fe2)} dec=${fmt(inst.decode_cycle)} ` +
+        `iss=${fmt(inst.issue_cycle)} wb=${fmt(inst.wb_cycle)} cc=${fmt(inst.commit_cycle)}`
+      );
+      if (inst.ic_miss_cycle != null) {
+        lines.push(`miss=${fmt(inst.ic_miss_cycle)} addr=${fmt(inst.ic_addr_cycle)} ` +
+          `fill=${fmt(inst.ic_fill_cycle)} wren=${fmt(inst.ic_wren_cycle)} ` +
+          `rden=${fmt(inst.ic_rden_cycle)}`);
       }
-
-      if (!byColor.has(seg.color)) byColor.set(seg.color, []);
-      byColor.get(seg.color).push([x0, y, fullW, h]);
-      // Track dotted segments for post-fill pattern overlay (v31-C).
-      if (seg.dotted) {
-        dottedRects.push([x0, y, fullW, h]);
-      }
-      // Track hit-cell white left border (v31-C).
-      if (seg.hitMark) {
-        hitRects.push([x0, y, fullW, h]);
-      }
-      if (fullW >= 8 && seg.label) {
-        labelQueue.push({ x0, y, w: fullW, h, label: seg.label });
-      }
+      if ((inst.iq_stall_cycles || 0) > 0) lines.push(`iq_stall=${inst.iq_stall_cycles}c`);
+      if (inst.wbuf_full_at_commit) lines.push(`commit stalled by wbuf full`);
+      if (inst.dcache_miss) lines.push(`dcache miss: ${inst.dcache_miss_end - inst.dcache_miss_start}c stall (${inst.dcache_miss_start}..${inst.dcache_miss_end})`);
+      dom.tip.textContent = lines.join('\n');
+      dom.tip.style.display = 'block';
+      const tipW = dom.tip.offsetWidth || 320;
+      const tipH = dom.tip.offsetHeight || 60;
+      let tx = mouseX + 14, ty = mouseY + 14;
+      if (tx + tipW > state.mainW - 4) tx = mouseX - tipW - 14;
+      if (ty + tipH > state.mainH - 4) ty = mouseY - tipH - 14;
+      dom.tip.style.left = Math.max(4, tx) + 'px';
+      dom.tip.style.top = Math.max(4, ty) + 'px';
     }
-  }
-  for (const [color, rects] of byColor) {
-    ctx.fillStyle = color;
-    for (const [x, y, w, h] of rects) ctx.fillRect(x, y, w, h);
-  }
 
-  // v31-C: Dotted pattern overlay on IQ stall bands.
-  // Paint small dark dots on top of the brown IQ fills so it reads as
-  // "stalled" even at a glance.
-  if (dottedRects.length) {
-    ctx.fillStyle = 'rgba(0,0,0,0.35)';
-    for (const [x, y, w, h] of dottedRects) {
-      // Dot grid: 4px spacing horizontally, 1px dots on middle line.
-      const dotY = y + Math.floor(h / 2);
-      for (let dx = x + 2; dx < x + w - 1; dx += 4) {
-        ctx.fillRect(dx, dotY, 1, 1);
-      }
-      // Secondary dot row for thicker stalls
-      if (h >= 12) {
-        const dotY2 = y + Math.floor(h * 0.25);
-        const dotY3 = y + Math.floor(h * 0.75);
-        for (let dx = x + 4; dx < x + w - 1; dx += 4) {
-          ctx.fillRect(dx, dotY2, 1, 1);
-          ctx.fillRect(dx, dotY3, 1, 1);
-        }
-      }
-    }
-  }
-
-  // v31-C: 1-cycle Hit cells get a solid white left border.
-  if (hitRects.length) {
-    ctx.fillStyle = '#ffffff';
-    for (const [x, y, w, h] of hitRects) {
-      ctx.fillRect(x, y, 2, h);  // 2px wide left border in solid white
-    }
-  }
-  // Split-cell dividers: draw N-1 vertical lines across each split group.
-  ctx.strokeStyle = 'rgba(0,0,0,0.65)';
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let r = r0; r <= r1; r++) {
-    const segs = state.segsByRow[r];
-    if (!segs) continue;
-    const y = Math.round(rowToY(r)) + 1;
-    const h = state.rowH - 3;
-    for (const seg of segs) {
-      if (seg.splitCount && seg.splitIndex === 0) {
-        if (seg.e < c0 || seg.s > c1) continue;
-        const x0 = Math.round(cycleToX(seg.s));
-        const x1 = Math.round(cycleToX(seg.e));
-        const fullW = Math.max(2, x1 - x0);
-        const N = seg.splitCount;
-        const sliceW = Math.max(1, Math.floor(fullW / N));
-        for (let j = 1; j < N; j++) {
-          const dx = x0 + j * sliceW + 0.5;
-          ctx.moveTo(dx, y);
-          ctx.lineTo(dx, y + h);
+    function renderMinimap() {
+      const [ctx, W, H] = sizeCanvas(dom.minimap, true);
+      ctx.fillStyle = '#14161b';
+      ctx.fillRect(0, 0, W, H);
+      if (!state.insts.length) return;
+      const rowsVis = H;
+      const stride = Math.max(1, Math.ceil(state.insts.length / rowsVis));
+      const yScale = rowsVis / Math.ceil(state.insts.length / stride);
+      const xScale = W / state.totalCycles;
+      for (let r = 0; r < state.insts.length; r += stride) {
+        const segs = state.segsByRow[r];
+        const y = Math.floor(r / stride * yScale);
+        for (const s of segs) {
+          const x = Math.floor((s.s - state.firstCycle) * xScale);
+          const w = Math.max(1, Math.ceil((s.e - s.s) * xScale));
+          ctx.fillStyle = s.color;
+          ctx.fillRect(x, y, w, Math.max(1, yScale | 0));
         }
       }
     }
-  }
-  ctx.stroke();
 
-  // ── DIRECTIVE 5: anchor the mnemonic at the very beginning of F1.
-  // Render as a small faint label just to the LEFT of the F1 bar,
-  // in the gap between rows.  If zoom is low (bars too narrow), skip.
-  if (state.pxPerCycle >= 16) {
-    ctx.font = '9px ui-monospace, "JetBrains Mono", monospace';
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'right';
-    for (let r = r0; r <= r1; r++) {
-      const inst = state.insts[r];
-      if (!inst) continue;
-      const anchorCyc = (inst.fe1 != null) ? inst.fe1
-                      : (inst.issue_cycle != null) ? inst.issue_cycle : null;
-      if (anchorCyc == null) continue;
-      if (anchorCyc > c1 || anchorCyc < c0 - 30) continue;
-      const ax = Math.round(cycleToX(anchorCyc));
-      const ay = Math.round(rowToY(r));
-      const mn = (inst.mnemonic || '').trim();
-      if (!mn) continue;
-      const text = mn.length > 14 ? mn.slice(0, 14) : mn;
-      // Render to the LEFT of the F1 bar, above the row midline.
-      ctx.fillStyle = 'rgba(10,14,20,0.75)';
-      const tw = ctx.measureText(text).width + 3;
-      if (ax - tw - 1 > state.padL) {
-        ctx.fillRect(ax - tw - 1, ay, tw, 8);
-        ctx.fillStyle = '#b0b8c4';
-        ctx.fillText(text, ax - 2, ay + 7);
+    function updateMinimapView() {
+      if (!state.insts.length) return;
+      const r = dom.minimap.getBoundingClientRect();
+      const xScale = r.width / state.totalCycles;
+      const rowsVis = r.height;
+      const stride = Math.max(1, Math.ceil(state.insts.length / rowsVis));
+      const yScale = rowsVis / Math.ceil(state.insts.length / stride);
+      const cycLeft = state.viewStart - state.firstCycle;
+      const cycRight = cycLeft + (state.mainW - state.padL) / state.pxPerCycle;
+      const rowTop = state.scrollY / state.rowH;
+      const rowBot = rowTop + (state.mainH - state.padT) / state.rowH;
+      const vx = Math.max(0, cycLeft * xScale);
+      const vw = Math.max(4, (cycRight - cycLeft) * xScale);
+      const vy = Math.max(0, rowTop / stride * yScale);
+      const vh = Math.max(3, (rowBot - rowTop) / stride * yScale);
+      dom.minimapView.style.left = vx + 'px';
+      dom.minimapView.style.top = vy + 'px';
+      dom.minimapView.style.width = vw + 'px';
+      dom.minimapView.style.height = vh + 'px';
+    }
+
+    dom.main.addEventListener('wheel', e => {
+      e.preventDefault();
+      const r = dom.main.getBoundingClientRect();
+      const mouseX = e.clientX - r.left;
+      if (e.ctrlKey || e.metaKey) {
+        const cycUnder = xToCycle(mouseX);
+        const factor = Math.exp(-e.deltaY * 0.0015);
+        const next = Math.max(0.5, Math.min(120, state.pxPerCycle * factor));
+        state.pxPerCycle = next;
+        state.viewStart = cycUnder - (mouseX - state.padL) / state.pxPerCycle;
+        dom.zoom.value = Math.min(60, Math.max(1, next));
+        dom.zoomReadout.textContent = next.toFixed(1) + ' px/c';
+      } else if (e.shiftKey) {
+        state.viewStart += e.deltaY / state.pxPerCycle;
+      } else {
+        state.scrollY = Math.max(0, state.scrollY + e.deltaY);
+        const maxY = Math.max(0, state.insts.length * state.rowH - (state.mainH - state.padT));
+        state.scrollY = Math.min(state.scrollY, maxY);
+        if (e.deltaX) state.viewStart += e.deltaX / state.pxPerCycle;
       }
-    }
-  }
+      scheduleRender();
+    }, { passive: false });
 
-  ctx.font = '10px ui-monospace, "JetBrains Mono", monospace';
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'left';
-  for (const { x0, y, w, h, label, forceShow } of labelQueue) {
-    const maxChars = Math.max(1, (w - 2) / 6 | 0);
-    const show = forceShow ? label.charAt(0)
-               : (label.length > maxChars ? label.slice(0, maxChars) : label);
-    const ly = y + h / 2;
-    ctx.fillStyle = 'rgba(0,0,0,0.65)';
-    ctx.fillText(show, x0 + 2, ly + 0.5);
-    ctx.fillStyle = '#f2f4f8';
-    ctx.fillText(show, x0 + 2, ly);
-  }
-  ctx.restore();
-}
+    let drag = null;
+    dom.main.addEventListener('mousedown', e => {
+      if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
+        drag = { x: e.clientX, y: e.clientY, vs: state.viewStart, sy: state.scrollY };
+        e.preventDefault();
+      }
+    });
+    window.addEventListener('mouseup', () => { drag = null; });
+    window.addEventListener('mousemove', e => {
+      if (!drag) return;
+      state.viewStart = drag.vs - (e.clientX - drag.x) / state.pxPerCycle;
+      state.scrollY = Math.max(0, drag.sy - (e.clientY - drag.y));
+      scheduleRender();
+    });
 
-function renderHover() {
-  const [ctx, W, H] = sizeCanvas(dom.hover, false);
-  ctx.clearRect(0, 0, W, H);
-  if (!state.hoverSeg) {
-    dom.tip.style.display = 'none';
-    return;
-  }
-  const { seg, rowIdx, mouseX, mouseY } = state.hoverSeg;
-  const x0 = Math.round(cycleToX(seg.s));
-  const x1 = Math.round(cycleToX(seg.e));
-  const w = Math.max(2, x1 - x0);
-  const y = Math.round(rowToY(rowIdx)) + 1;
-  const h = state.rowH - 3;
-  ctx.strokeStyle = '#ffffffcc';
-  ctx.lineWidth = 1.5;
-  ctx.strokeRect(x0 - 0.5, y - 0.5, w + 1, h + 1);
-  const guideX = Math.round(mouseX) + 0.5;
-  ctx.strokeStyle = '#63b3ed55';
-  ctx.beginPath();
-  ctx.moveTo(guideX, state.padT);
-  ctx.lineTo(guideX, H);
-  ctx.stroke();
+    dom.main.addEventListener('mousemove', e => {
+      const r = dom.main.getBoundingClientRect();
+      const mouseX = e.clientX - r.left;
+      const mouseY = e.clientY - r.top;
+      if (mouseX < state.padL || mouseY < state.padT) {
+        state.hoverSeg = null; scheduleHover(); return;
+      }
+      const rowIdx = yToRow(mouseY);
+      const segs = state.segsByRow[rowIdx];
+      if (!segs) { state.hoverSeg = null; scheduleHover(); return; }
+      const cyc = xToCycle(mouseX);
+      let hit = null;
+      for (const s of segs) {
+        if (cyc >= s.s && cyc <= s.e) { hit = s; }
+      }
+      if (hit) {
+        state.hoverSeg = { seg: hit, rowIdx, mouseX, mouseY };
+      } else {
+        state.hoverSeg = null;
+      }
+      scheduleHover();
+    });
+    dom.main.addEventListener('mouseleave', () => {
+      state.hoverSeg = null; scheduleHover();
+    });
 
-  const inst = seg.inst;
-  const dur = seg.e - seg.s;
-  const lines = [
-    `#${inst.uid}  ${inst.pc}  ${inst.mnemonic || ''}`,
-    `stage: ${seg.label}   fu: ${inst.fu}   ${seg.s}..${seg.e} (${dur}c)`,
-  ];
-  const fmt = v => v == null ? '—' : String(v);
-  lines.push(
-    `fe1=${fmt(inst.fe1)} fe2=${fmt(inst.fe2)} dec=${fmt(inst.decode_cycle)} ` +
-    `iss=${fmt(inst.issue_cycle)} wb=${fmt(inst.wb_cycle)} cc=${fmt(inst.commit_cycle)}`
-  );
-  if (inst.ic_miss_cycle != null) {
-    lines.push(`miss=${fmt(inst.ic_miss_cycle)} addr=${fmt(inst.ic_addr_cycle)} ` +
-               `fill=${fmt(inst.ic_fill_cycle)} wren=${fmt(inst.ic_wren_cycle)} ` +
-               `rden=${fmt(inst.ic_rden_cycle)}`);
-  }
-  if ((inst.iq_stall_cycles || 0) > 0) lines.push(`iq_stall=${inst.iq_stall_cycles}c`);
-  if (inst.wbuf_full_at_commit) lines.push(`commit stalled by wbuf full`);
-  if (inst.dcache_miss) lines.push(`dcache miss: ${inst.dcache_miss_end - inst.dcache_miss_start}c stall (${inst.dcache_miss_start}..${inst.dcache_miss_end})`);
-  dom.tip.textContent = lines.join('\n');
-  dom.tip.style.display = 'block';
-  const tipW = dom.tip.offsetWidth || 320;
-  const tipH = dom.tip.offsetHeight || 60;
-  let tx = mouseX + 14, ty = mouseY + 14;
-  if (tx + tipW > state.mainW - 4) tx = mouseX - tipW - 14;
-  if (ty + tipH > state.mainH - 4) ty = mouseY - tipH - 14;
-  dom.tip.style.left = Math.max(4, tx) + 'px';
-  dom.tip.style.top = Math.max(4, ty) + 'px';
-}
+    dom.zoom.addEventListener('input', e => {
+      const mid = state.mainW / 2;
+      const cycUnder = xToCycle(mid);
+      state.pxPerCycle = parseFloat(e.target.value);
+      state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
+      dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
+      scheduleRender();
+    });
 
-function renderMinimap() {
-  const [ctx, W, H] = sizeCanvas(dom.minimap, true);
-  ctx.fillStyle = '#14161b';
-  ctx.fillRect(0, 0, W, H);
-  if (!state.insts.length) return;
-  const rowsVis = H;
-  const stride = Math.max(1, Math.ceil(state.insts.length / rowsVis));
-  const yScale = rowsVis / Math.ceil(state.insts.length / stride);
-  const xScale = W / state.totalCycles;
-  for (let r = 0; r < state.insts.length; r += stride) {
-    const segs = state.segsByRow[r];
-    const y = Math.floor(r / stride * yScale);
-    for (const s of segs) {
-      const x = Math.floor((s.s - state.firstCycle) * xScale);
-      const w = Math.max(1, Math.ceil((s.e - s.s) * xScale));
-      ctx.fillStyle = s.color;
-      ctx.fillRect(x, y, w, Math.max(1, yScale | 0));
-    }
-  }
-}
+    dom.fit.addEventListener('click', () => {
+      if (!state.insts.length) return;
+      const avail = state.mainW - state.padL - 20;
+      state.pxPerCycle = Math.max(0.5, avail / state.totalCycles);
+      state.viewStart = state.firstCycle;
+      state.scrollY = 0;
+      dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
+      dom.zoomReadout.textContent = state.pxPerCycle.toFixed(2) + ' px/c';
+      scheduleRender();
+    });
 
-function updateMinimapView() {
-  if (!state.insts.length) return;
-  const r = dom.minimap.getBoundingClientRect();
-  const xScale = r.width / state.totalCycles;
-  const rowsVis = r.height;
-  const stride = Math.max(1, Math.ceil(state.insts.length / rowsVis));
-  const yScale = rowsVis / Math.ceil(state.insts.length / stride);
-  const cycLeft = state.viewStart - state.firstCycle;
-  const cycRight = cycLeft + (state.mainW - state.padL) / state.pxPerCycle;
-  const rowTop = state.scrollY / state.rowH;
-  const rowBot = rowTop + (state.mainH - state.padT) / state.rowH;
-  const vx = Math.max(0, cycLeft * xScale);
-  const vw = Math.max(4, (cycRight - cycLeft) * xScale);
-  const vy = Math.max(0, rowTop / stride * yScale);
-  const vh = Math.max(3, (rowBot - rowTop) / stride * yScale);
-  dom.minimapView.style.left = vx + 'px';
-  dom.minimapView.style.top = vy + 'px';
-  dom.minimapView.style.width = vw + 'px';
-  dom.minimapView.style.height = vh + 'px';
-}
+    let nextMissIdx = 0;
+    dom.gotoMiss.addEventListener('click', () => {
+      const miss = [];
+      for (let i = 0; i < state.insts.length; i++)
+        if (state.insts[i].ic_miss_cycle != null) miss.push(i);
+      if (!miss.length) return;
+      const target = miss[nextMissIdx % miss.length];
+      nextMissIdx++;
+      const inst = state.insts[target];
+      const c = inst.ic_miss_cycle;
+      const mid = (state.mainW - state.padL) / 2;
+      state.viewStart = c - mid / state.pxPerCycle;
+      state.scrollY = Math.max(0, target * state.rowH - (state.mainH - state.padT) / 2);
+      scheduleRender();
+    });
 
-dom.main.addEventListener('wheel', e => {
-  e.preventDefault();
-  const r = dom.main.getBoundingClientRect();
-  const mouseX = e.clientX - r.left;
-  if (e.ctrlKey || e.metaKey) {
-    const cycUnder = xToCycle(mouseX);
-    const factor = Math.exp(-e.deltaY * 0.0015);
-    const next = Math.max(0.5, Math.min(120, state.pxPerCycle * factor));
-    state.pxPerCycle = next;
-    state.viewStart = cycUnder - (mouseX - state.padL) / state.pxPerCycle;
-    dom.zoom.value = Math.min(60, Math.max(1, next));
-    dom.zoomReadout.textContent = next.toFixed(1) + ' px/c';
-  } else if (e.shiftKey) {
-    state.viewStart += e.deltaY / state.pxPerCycle;
-  } else {
-    state.scrollY = Math.max(0, state.scrollY + e.deltaY);
-    const maxY = Math.max(0, state.insts.length * state.rowH - (state.mainH - state.padT));
-    state.scrollY = Math.min(state.scrollY, maxY);
-    if (e.deltaX) state.viewStart += e.deltaX / state.pxPerCycle;
-  }
-  scheduleRender();
-}, { passive: false });
+    let nextDmissIdx = 0;
+    dom.gotoDmiss.addEventListener('click', () => {
+      const dm = [];
+      for (let i = 0; i < state.insts.length; i++)
+        if (state.insts[i].dcache_miss) dm.push(i);
+      if (!dm.length) return;
+      const target = dm[nextDmissIdx % dm.length];
+      nextDmissIdx++;
+      const inst = state.insts[target];
+      const c = inst.dcache_miss_start;
+      const mid = (state.mainW - state.padL) / 2;
+      state.viewStart = c - mid / state.pxPerCycle;
+      state.scrollY = Math.max(0, target * state.rowH - (state.mainH - state.padT) / 2);
+      scheduleRender();
+    });
 
-let drag = null;
-dom.main.addEventListener('mousedown', e => {
-  if (e.button === 1 || (e.button === 0 && e.shiftKey)) {
-    drag = { x: e.clientX, y: e.clientY, vs: state.viewStart, sy: state.scrollY };
-    e.preventDefault();
-  }
-});
-window.addEventListener('mouseup', () => { drag = null; });
-window.addEventListener('mousemove', e => {
-  if (!drag) return;
-  state.viewStart = drag.vs - (e.clientX - drag.x) / state.pxPerCycle;
-  state.scrollY = Math.max(0, drag.sy - (e.clientY - drag.y));
-  scheduleRender();
-});
+    dom.minimap.addEventListener('click', e => {
+      const r = dom.minimap.getBoundingClientRect();
+      const mx = e.clientX - r.left;
+      const my = e.clientY - r.top;
+      const cyc = state.firstCycle + (mx / r.width) * state.totalCycles;
+      state.viewStart = cyc - (state.mainW - state.padL) / 2 / state.pxPerCycle;
+      const rowIdx = Math.floor(my / r.height * state.insts.length);
+      state.scrollY = Math.max(0, rowIdx * state.rowH - (state.mainH - state.padT) / 2);
+      scheduleRender();
+    });
 
-dom.main.addEventListener('mousemove', e => {
-  const r = dom.main.getBoundingClientRect();
-  const mouseX = e.clientX - r.left;
-  const mouseY = e.clientY - r.top;
-  if (mouseX < state.padL || mouseY < state.padT) {
-    state.hoverSeg = null; scheduleHover(); return;
-  }
-  const rowIdx = yToRow(mouseY);
-  const segs = state.segsByRow[rowIdx];
-  if (!segs) { state.hoverSeg = null; scheduleHover(); return; }
-  const cyc = xToCycle(mouseX);
-  let hit = null;
-  for (const s of segs) {
-    if (cyc >= s.s && cyc <= s.e) { hit = s; }
-  }
-  if (hit) {
-    state.hoverSeg = { seg: hit, rowIdx, mouseX, mouseY };
-  } else {
-    state.hoverSeg = null;
-  }
-  scheduleHover();
-});
-dom.main.addEventListener('mouseleave', () => {
-  state.hoverSeg = null; scheduleHover();
-});
+    dom.file.addEventListener('change', async e => {
+      const f = e.target.files[0];
+      if (!f) return;
+      const txt = await f.text();
+      try { loadJSON(JSON.parse(txt)); }
+      catch (err) { alert('JSON parse error: ' + err.message); }
+    });
 
-dom.zoom.addEventListener('input', e => {
-  const mid = state.mainW / 2;
-  const cycUnder = xToCycle(mid);
-  state.pxPerCycle = parseFloat(e.target.value);
-  state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
-  dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
-  scheduleRender();
-});
+    window.addEventListener('keydown', e => {
+      if (e.target.tagName === 'INPUT') return;
+      const mid = state.mainW / 2;
+      const cycUnder = xToCycle(mid);
+      const stepCyc = (state.mainW - state.padL) / state.pxPerCycle * 0.2;
+      if (e.key === 'ArrowLeft') { state.viewStart -= stepCyc; scheduleRender(); }
+      if (e.key === 'ArrowRight') { state.viewStart += stepCyc; scheduleRender(); }
+      if (e.key === 'ArrowUp') { state.scrollY = Math.max(0, state.scrollY - state.rowH * 3); scheduleRender(); }
+      if (e.key === 'ArrowDown') { state.scrollY = state.scrollY + state.rowH * 3; scheduleRender(); }
+      if (e.key === '+' || e.key === '=') {
+        state.pxPerCycle = Math.min(120, state.pxPerCycle * 1.25);
+        state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
+        dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
+        dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
+        scheduleRender();
+      }
+      if (e.key === '-') {
+        state.pxPerCycle = Math.max(0.5, state.pxPerCycle / 1.25);
+        state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
+        dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
+        dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
+        scheduleRender();
+      }
+    });
 
-dom.fit.addEventListener('click', () => {
-  if (!state.insts.length) return;
-  const avail = state.mainW - state.padL - 20;
-  state.pxPerCycle = Math.max(0.5, avail / state.totalCycles);
-  state.viewStart = state.firstCycle;
-  state.scrollY = 0;
-  dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
-  dom.zoomReadout.textContent = state.pxPerCycle.toFixed(2) + ' px/c';
-  scheduleRender();
-});
+    window.addEventListener('resize', () => { scheduleRender(); renderMinimap(); });
 
-let nextMissIdx = 0;
-dom.gotoMiss.addEventListener('click', () => {
-  const miss = [];
-  for (let i = 0; i < state.insts.length; i++)
-    if (state.insts[i].ic_miss_cycle != null) miss.push(i);
-  if (!miss.length) return;
-  const target = miss[nextMissIdx % miss.length];
-  nextMissIdx++;
-  const inst = state.insts[target];
-  const c = inst.ic_miss_cycle;
-  const mid = (state.mainW - state.padL) / 2;
-  state.viewStart = c - mid / state.pxPerCycle;
-  state.scrollY = Math.max(0, target * state.rowH - (state.mainH - state.padT) / 2);
-  scheduleRender();
-});
+    sizeMainCanvases();
+    renderLegend();
+    render();
 
-let nextDmissIdx = 0;
-dom.gotoDmiss.addEventListener('click', () => {
-  const dm = [];
-  for (let i = 0; i < state.insts.length; i++)
-    if (state.insts[i].dcache_miss) dm.push(i);
-  if (!dm.length) return;
-  const target = dm[nextDmissIdx % dm.length];
-  nextDmissIdx++;
-  const inst = state.insts[target];
-  const c = inst.dcache_miss_start;
-  const mid = (state.mainW - state.padL) / 2;
-  state.viewStart = c - mid / state.pxPerCycle;
-  state.scrollY = Math.max(0, target * state.rowH - (state.mainH - state.padT) / 2);
-  scheduleRender();
-});
-
-dom.minimap.addEventListener('click', e => {
-  const r = dom.minimap.getBoundingClientRect();
-  const mx = e.clientX - r.left;
-  const my = e.clientY - r.top;
-  const cyc = state.firstCycle + (mx / r.width) * state.totalCycles;
-  state.viewStart = cyc - (state.mainW - state.padL) / 2 / state.pxPerCycle;
-  const rowIdx = Math.floor(my / r.height * state.insts.length);
-  state.scrollY = Math.max(0, rowIdx * state.rowH - (state.mainH - state.padT) / 2);
-  scheduleRender();
-});
-
-dom.file.addEventListener('change', async e => {
-  const f = e.target.files[0];
-  if (!f) return;
-  const txt = await f.text();
-  try { loadJSON(JSON.parse(txt)); }
-  catch (err) { alert('JSON parse error: ' + err.message); }
-});
-
-window.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT') return;
-  const mid = state.mainW / 2;
-  const cycUnder = xToCycle(mid);
-  const stepCyc = (state.mainW - state.padL) / state.pxPerCycle * 0.2;
-  if (e.key === 'ArrowLeft')  { state.viewStart -= stepCyc; scheduleRender(); }
-  if (e.key === 'ArrowRight') { state.viewStart += stepCyc; scheduleRender(); }
-  if (e.key === 'ArrowUp')    { state.scrollY = Math.max(0, state.scrollY - state.rowH * 3); scheduleRender(); }
-  if (e.key === 'ArrowDown')  { state.scrollY = state.scrollY + state.rowH * 3; scheduleRender(); }
-  if (e.key === '+' || e.key === '=') {
-    state.pxPerCycle = Math.min(120, state.pxPerCycle * 1.25);
-    state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
-    dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
-    dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
-    scheduleRender();
-  }
-  if (e.key === '-') {
-    state.pxPerCycle = Math.max(0.5, state.pxPerCycle / 1.25);
-    state.viewStart = cycUnder - (mid - state.padL) / state.pxPerCycle;
-    dom.zoom.value = Math.min(60, Math.max(1, state.pxPerCycle));
-    dom.zoomReadout.textContent = state.pxPerCycle.toFixed(1) + ' px/c';
-    scheduleRender();
-  }
-});
-
-window.addEventListener('resize', () => { scheduleRender(); renderMinimap(); });
-
-sizeMainCanvases();
-renderLegend();
-render();
-
-window.loadJSON = loadJSON;
-window.state = state;
-</script>
+    window.loadJSON = loadJSON;
+    window.state = state;
+  </script>
 </body>
+
 </html>

@@ -36,16 +36,16 @@ STORE FSM: IDL=IDLE VST=VALID_STORE WTL=WAIT_TRANSLATION WSR=WAIT_STORE_READY
 FU codes:  ALU LD ST CSR MUL CF FPU
 """
 
+from phase3_pipeline_tracer import (
+    parse_var_block, match_whitelist, binary_to_int,
+    FU_NAME, LOAD_FSM_NAMES, STORE_FSM_NAMES,
+)
 import argparse
 import sys
 from pathlib import Path
 
 # Reuse parser/helpers from the main tracer.
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phase3_pipeline_tracer import (
-    parse_var_block, match_whitelist, binary_to_int,
-    FU_NAME, LOAD_FSM_NAMES, STORE_FSM_NAMES,
-)
 
 
 WHITELIST = [
@@ -86,10 +86,13 @@ _FU_COMPACT = {
     "FPU_VEC": "VEC", "CVXIF": "CVX", "ACCEL": "ACC", "AES": "AES",
 }
 
+
 def fmt_fu(s):
-    if s is None: return ' - '
+    if s is None:
+        return ' - '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     name = FU_NAME.get(n, f'?{n}')
     return _FU_COMPACT.get(name, name[:3].upper())
 
@@ -102,10 +105,13 @@ _LOAD_COMPACT = {
     "WAIT_WB_EMPTY": "WWE",
 }
 
+
 def fmt_load_state(s):
-    if s is None: return ' ? '
+    if s is None:
+        return ' ? '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     name = LOAD_FSM_NAMES.get(n, f'?{n}')
     return _LOAD_COMPACT.get(name, name[:3])
 
@@ -115,10 +121,13 @@ _STORE_COMPACT = {
     "WAIT_TRANSLATION": "WTL", "WAIT_STORE_READY": "WSR",
 }
 
+
 def fmt_store_state(s):
-    if s is None: return ' ? '
+    if s is None:
+        return ' ? '
     n = binary_to_int(s)
-    if n is None: return ' X '
+    if n is None:
+        return ' X '
     name = STORE_FSM_NAMES.get(n, f'?{n}')
     return _STORE_COMPACT.get(name, name[:3])
 
@@ -149,18 +158,19 @@ def main():
         single_id = {m["whitelist_path"]: m["vcd_ids"][0]
                      for m in matches if len(m["vcd_ids"]) == 1}
 
-        CLK  = single_id.get("clk_i")
-        DV   = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_valid_i")
-        DA   = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_ack_o")
-        IV   = single_id.get("issue_stage_i.i_scoreboard.issue_instr_valid_o")
-        IA   = single_id.get("issue_stage_i.i_scoreboard.issue_ack_i")
+        CLK = single_id.get("clk_i")
+        DV = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_valid_i")
+        DA = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_ack_o")
+        IV = single_id.get("issue_stage_i.i_scoreboard.issue_instr_valid_o")
+        IA = single_id.get("issue_stage_i.i_scoreboard.issue_ack_i")
         IPTR = single_id.get("issue_stage_i.i_scoreboard.issue_pointer_q")
-        DFU  = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_i[0].fu")
-        FUI  = single_id.get("issue_stage_i.i_scoreboard.flush_unissued_instr_i")
+        DFU = single_id.get("issue_stage_i.i_scoreboard.decoded_instr_i[0].fu")
+        FUI = single_id.get(
+            "issue_stage_i.i_scoreboard.flush_unissued_instr_i")
         LDST = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
         STST = single_id.get("ex_stage_i.lsu_i.i_store_unit.state_q")
         # Phase 6a v0.4 candidate signals
-        LCV  = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.valid")
+        LCV = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.valid")
         LCTID = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.trans_id")
         LCFU = single_id.get("ex_stage_i.lsu_i.lsu_ctrl.fu")
         BPSC = single_id.get("ex_stage_i.lsu_i.lsu_bypass_i.status_cnt_q")
@@ -168,17 +178,20 @@ def main():
         BPWP = single_id.get("ex_stage_i.lsu_i.lsu_bypass_i.write_pointer_q")
         BPPL = single_id.get("ex_stage_i.lsu_i.lsu_bypass_i.pop_ld_i")
         BPPS = single_id.get("ex_stage_i.lsu_i.lsu_bypass_i.pop_st_i")
-        FIF  = single_id.get("flush_ctrl_if")
-        FID  = single_id.get("flush_ctrl_id")
-        FEX  = single_id.get("flush_ctrl_ex")
+        FIF = single_id.get("flush_ctrl_if")
+        FID = single_id.get("flush_ctrl_id")
+        FEX = single_id.get("flush_ctrl_ex")
         MEMQ_FU = [single_id.get(f"issue_stage_i.i_scoreboard.mem_q[{n}].sbe.fu")
                    for n in range(8)]
 
         # Sanity
         missing = []
-        if CLK  is None: missing.append("clk_i")
-        if LDST is None: missing.append("i_load_unit.state_q")
-        if STST is None: missing.append("i_store_unit.state_q")
+        if CLK is None:
+            missing.append("clk_i")
+        if LDST is None:
+            missing.append("i_load_unit.state_q")
+        if STST is None:
+            missing.append("i_store_unit.state_q")
         if missing:
             sys.exit(f"FATAL: signals missing: {missing}")
         n_memq = sum(1 for x in MEMQ_FU if x is not None)
@@ -198,9 +211,9 @@ def main():
             marker = "OK" if vid else "MISS"
             print(f"# [{marker}] {name}", file=sys.stderr)
 
-        tracked = {x for x in (CLK,DV,DA,IV,IA,IPTR,DFU,FUI,LDST,STST,
-                               LCV,LCTID,LCFU,BPSC,BPRP,BPWP,BPPL,BPPS,
-                               FIF,FID,FEX) if x}
+        tracked = {x for x in (CLK, DV, DA, IV, IA, IPTR, DFU, FUI, LDST, STST,
+                               LCV, LCTID, LCFU, BPSC, BPRP, BPWP, BPPL, BPPS,
+                               FIF, FID, FEX) if x}
         tracked.update(x for x in MEMQ_FU if x)
 
         state = {}
@@ -220,8 +233,8 @@ def main():
             cycle += 1
             if not (args.start <= cycle <= args.end):
                 return
-            dv   = state.get(DV, "0") if DV   else "?"
-            da   = state.get(DA, "0") if DA   else "?"
+            dv = state.get(DV, "0") if DV else "?"
+            da = state.get(DA, "0") if DA else "?"
             iptr = binary_to_int(state.get(IPTR)) if IPTR else None
             iptr_s = str(iptr) if iptr is not None else '-'
             dfu_s = fmt_fu(state.get(DFU)) if DFU else " - "
@@ -267,11 +280,14 @@ def main():
                 clk_at_ts_start = state.get(CLK, "0")
                 continue
             if c0 in "01xXzZ":
-                value = c0; vcd_id = line[1:]
+                value = c0
+                vcd_id = line[1:]
             elif c0 in "bBrR":
                 sp = line.find(" ")
-                if sp <= 0: continue
-                value = line[1:sp]; vcd_id = line[sp+1:]
+                if sp <= 0:
+                    continue
+                value = line[1:sp]
+                vcd_id = line[sp+1:]
             else:
                 continue
             if vcd_id in tracked:

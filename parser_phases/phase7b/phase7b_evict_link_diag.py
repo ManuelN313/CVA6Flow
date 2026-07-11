@@ -28,14 +28,16 @@ from collections import defaultdict
 TARGETS = {
     # eviction side (miss handler)
     "m_alloc_v": (".hpdcache_miss_handler_i.mshr_alloc_i",          "scalar"),
-    "m_wback"  : (".hpdcache_miss_handler_i.mshr_alloc_wback_i",    "scalar"),
-    "m_nline"  : (".hpdcache_miss_handler_i.mshr_alloc_nline_i",    "vector"),
-    "m_vway"   : (".hpdcache_miss_handler_i.mshr_alloc_victim_way_i","vector"),  # one-hot
+    "m_wback": (".hpdcache_miss_handler_i.mshr_alloc_wback_i",    "scalar"),
+    "m_nline": (".hpdcache_miss_handler_i.mshr_alloc_nline_i",    "vector"),
+    # one-hot
+    "m_vway": (".hpdcache_miss_handler_i.mshr_alloc_victim_way_i", "vector"),
     # flush/writeback alloc side (i_hpdcache level)
     "f_alloc_v": (".i_hpdcache.flush_alloc",                        "scalar"),
     "f_alloc_r": (".i_hpdcache.flush_alloc_ready",                  "scalar"),
-    "f_nline"  : (".i_hpdcache.flush_alloc_nline",                  "vector"),
-    "f_way"    : (".i_hpdcache.flush_alloc_way",                    "vector"),   # one-hot
+    "f_nline": (".i_hpdcache.flush_alloc_nline",                  "vector"),
+    # one-hot
+    "f_way": (".i_hpdcache.flush_alloc_way",                    "vector"),
 }
 CLOCK_SUFFIX_PREFS = [".i_cva6.clk_i", ".i_ariane.clk_i",
                       ".ariane_testharness.clk_i", ".clk_i", ".clk"]

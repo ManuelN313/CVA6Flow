@@ -124,12 +124,18 @@ def classify_mnemonic(mn):
     """Return expected fu string for `mn`, or 'UNKNOWN' if unrecognized.
 
     `mn` should already be lowercased and have any `c.` prefix stripped."""
-    if mn in ALU_MNEM:       return "ALU"
-    if mn in LOAD_MNEM:      return "LOAD"
-    if mn in STORE_MNEM:     return "STORE"
-    if mn in CTRL_FLOW_MNEM: return "CTRL_FLOW"
-    if mn in CSR_MNEM:       return "CSR"
-    if mn in MULT_MNEM:      return "MULT"
+    if mn in ALU_MNEM:
+        return "ALU"
+    if mn in LOAD_MNEM:
+        return "LOAD"
+    if mn in STORE_MNEM:
+        return "STORE"
+    if mn in CTRL_FLOW_MNEM:
+        return "CTRL_FLOW"
+    if mn in CSR_MNEM:
+        return "CSR"
+    if mn in MULT_MNEM:
+        return "MULT"
     # Atomic group (AMOs + LR/SC with optional ordering suffixes).
     if _AMO_OR_LRSC_RE.match(mn):
         # LR.W/LR.D are technically LOAD per the ISA, but CVA6 routes
@@ -269,7 +275,8 @@ def main():
                   f"mnemonic={m['mnemonic']:<14}  "
                   f"expected={m['fu_expected']:<10} actual={m['fu_actual']}")
         if not args.all and len(mismatches) > limit:
-            print(f"  ... ({len(mismatches) - limit:,} more, use --all to show)")
+            print(
+                f"  ... ({len(mismatches) - limit:,} more, use --all to show)")
         print()
 
     if unknown_mnemonics:

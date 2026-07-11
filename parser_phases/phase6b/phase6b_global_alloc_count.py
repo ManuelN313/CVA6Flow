@@ -10,15 +10,15 @@ Usage:
   python3 p6b_global_alloc_count.py fdiv.vcd
 """
 
+from phase3_pipeline_tracer import (
+    parse_var_block, match_whitelist, binary_to_int,
+)
 import argparse
 import sys
 from collections import Counter
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from phase3_pipeline_tracer import (
-    parse_var_block, match_whitelist, binary_to_int,
-)
 
 
 SCOPE = "TOP.ariane_testharness.i_ariane.i_cva6"
@@ -51,11 +51,11 @@ def main():
         single_id = {m["whitelist_path"]: m["vcd_ids"][0]
                      for m in matches if len(m["vcd_ids"]) == 1}
 
-        CLK   = single_id.get("clk_i")
+        CLK = single_id.get("clk_i")
         MALLO = single_id.get(BASE + "mshr_alloc_i")
-        MTID  = single_id.get(BASE + "mshr_alloc_tid_i")
-        MSID  = single_id.get(BASE + "mshr_alloc_sid_i")
-        MPF   = single_id.get(BASE + "mshr_alloc_is_prefetch_i")
+        MTID = single_id.get(BASE + "mshr_alloc_tid_i")
+        MSID = single_id.get(BASE + "mshr_alloc_sid_i")
+        MPF = single_id.get(BASE + "mshr_alloc_is_prefetch_i")
 
         if not (CLK and MALLO and MSID):
             sys.exit("FATAL: required signals not resolved")
@@ -77,7 +77,7 @@ def main():
             if state.get(MALLO) == "1":
                 sid = binary_to_int(state.get(MSID, "0"))
                 tid = binary_to_int(state.get(MTID, "0"))
-                pf  = binary_to_int(state.get(MPF, "0"))
+                pf = binary_to_int(state.get(MPF, "0"))
                 by_sid[sid] += 1
                 by_sid_pf[(sid, pf)] += 1
                 by_sid_tid[(sid, tid)] += 1
@@ -86,7 +86,8 @@ def main():
 
         for line in f:
             line = line.rstrip()
-            if not line: continue
+            if not line:
+                continue
             c0 = line[0]
             if c0 == "#":
                 if first_ts_seen:
@@ -98,11 +99,14 @@ def main():
                 clk_at_ts_start = state.get(CLK, "0")
                 continue
             if c0 in "01xXzZ":
-                value = c0; vcd_id = line[1:]
+                value = c0
+                vcd_id = line[1:]
             elif c0 in "bBrR":
                 sp = line.find(" ")
-                if sp <= 0: continue
-                value = line[1:sp]; vcd_id = line[sp+1:]
+                if sp <= 0:
+                    continue
+                value = line[1:sp]
+                vcd_id = line[sp+1:]
             else:
                 continue
             if vcd_id in tracked:

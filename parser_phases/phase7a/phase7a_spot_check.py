@@ -32,7 +32,8 @@ from pathlib import Path
 
 
 def fmt_target(t):
-    if t is None: return "—"
+    if t is None:
+        return "—"
     return f"0x{t:x}"
 
 
@@ -58,16 +59,18 @@ def main():
     print("=" * 78)
     print("[1] SUMMARY")
     print("=" * 78)
-    predicted     = [r for r in cf if r.get("bp_predicted_cf")
-                     and r["bp_predicted_cf"] != "NoCF"]
-    resolved      = [r for r in cf if r.get("bp_resolution_cycle") is not None]
-    mispredicts   = [r for r in resolved if r.get("bp_mispredict")]
-    flushed_pre   = [r for r in cf if r.get("flushed")
-                     and r.get("bp_resolution_cycle") is None]
+    predicted = [r for r in cf if r.get("bp_predicted_cf")
+                 and r["bp_predicted_cf"] != "NoCF"]
+    resolved = [r for r in cf if r.get("bp_resolution_cycle") is not None]
+    mispredicts = [r for r in resolved if r.get("bp_mispredict")]
+    flushed_pre = [r for r in cf if r.get("flushed")
+                   and r.get("bp_resolution_cycle") is None]
 
     pred_by_cf = Counter(r["bp_predicted_cf"] for r in predicted)
-    misp_by_predcf = Counter(r.get("bp_predicted_cf") or "None" for r in mispredicts)
-    misp_by_rescf  = Counter(r.get("bp_resolved_cf") or "None" for r in mispredicts)
+    misp_by_predcf = Counter(r.get("bp_predicted_cf")
+                             or "None" for r in mispredicts)
+    misp_by_rescf = Counter(r.get("bp_resolved_cf")
+                            or "None" for r in mispredicts)
 
     print(f"  Total CTRL_FLOW         : {len(cf)}")
     print(f"  Predicted (non-NoCF)    : {len(predicted)}   {dict(pred_by_cf)}")
@@ -137,7 +140,8 @@ def main():
     print(f"  {'pc':>11}  {'#misp':>5}  {'#tot':>5}  {'rate':>6}  disasm")
     print("  " + "-" * 70)
     for pc, n_misp, n_total, rate, disasm in rows[:20]:
-        print(f"  {pc:>11}  {n_misp:>5}  {n_total:>5}  {rate:>5.1f}%  {disasm[:40]}")
+        print(
+            f"  {pc:>11}  {n_misp:>5}  {n_total:>5}  {rate:>5.1f}%  {disasm[:40]}")
     print()
 
 

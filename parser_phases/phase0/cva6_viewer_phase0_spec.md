@@ -38,7 +38,7 @@ Two components, one wire:
 - **Extractor:** linear forward scan over VCD; whitelist-filtered signals only; emits one record per dynamic instruction.
 - **Viewer:** reads the JSON, renders timeline. No client-side cycle corrections, no caches, no "fix-ups." The JSON is the source of truth.
 
-The JSON file is the *only* coupling between the two halves. Either can be rewritten without the other knowing, provided the schema below is honored.
+The JSON file is the _only_ coupling between the two halves. Either can be rewritten without the other knowing, provided the schema below is honored.
 
 ---
 
@@ -46,16 +46,16 @@ The JSON file is the *only* coupling between the two halves. Either can be rewri
 
 CVA6 is a 6-stage pipeline. We expose 8 sub-stages in the JSON because the frontend is internally multi-cycle and the comparison-with-MinorFlow goal benefits from showing the I$-request / I$-response phases explicitly.
 
-| # | Stage             | JSON field   | Anchor event in VCD                                                          |
-|---|-------------------|--------------|------------------------------------------------------------------------------|
-| 1 | Fetch1 (I$ req)   | `if1_cycle`  | `icache_dreq_o.req` asserted for the line containing this instruction's PC   |
-| 2 | Fetch2 (I$ resp)  | `if2_cycle`  | `icache_dreq_i.valid` asserted with the line containing this instruction's PC|
-| 3 | Frontend out      | `fe_cycle`   | `fetch_entry_valid` AND `fetch_entry_ready` both 1 (handed to ID)            |
-| 4 | Decode            | `id_cycle`   | `decoded_instr_valid` AND `decoded_instr_ack` both 1 (handed to scoreboard)  |
-| 5 | Issue             | `is_cycle`   | `issue_instr_valid` AND `issue_ack` both 1 (handed to IRO + FU)              |
-| 6 | Execute           | `ex_cycle`   | `is_cycle + 1` (FU begins computation; VCD-verified relation)                |
-| 7 | Writeback         | `wb_cycle`   | `wt_valid_i[port]` AND `trans_id_i[port] == captured_trans_id`               |
-| 8 | Commit            | `co_cycle`   | `commit_ack_o[port]` AND `rvfi_instr_o[port].valid` AND `pc_rdata == pc`     |
+| #   | Stage            | JSON field  | Anchor event in VCD                                                           |
+| --- | ---------------- | ----------- | ----------------------------------------------------------------------------- |
+| 1   | Fetch1 (I$ req)  | `if1_cycle` | `icache_dreq_o.req` asserted for the line containing this instruction's PC    |
+| 2   | Fetch2 (I$ resp) | `if2_cycle` | `icache_dreq_i.valid` asserted with the line containing this instruction's PC |
+| 3   | Frontend out     | `fe_cycle`  | `fetch_entry_valid` AND `fetch_entry_ready` both 1 (handed to ID)             |
+| 4   | Decode           | `id_cycle`  | `decoded_instr_valid` AND `decoded_instr_ack` both 1 (handed to scoreboard)   |
+| 5   | Issue            | `is_cycle`  | `issue_instr_valid` AND `issue_ack` both 1 (handed to IRO + FU)               |
+| 6   | Execute          | `ex_cycle`  | `is_cycle + 1` (FU begins computation; VCD-verified relation)                 |
+| 7   | Writeback        | `wb_cycle`  | `wt_valid_i[port]` AND `trans_id_i[port] == captured_trans_id`                |
+| 8   | Commit           | `co_cycle`  | `commit_ack_o[port]` AND `rvfi_instr_o[port].valid` AND `pc_rdata == pc`      |
 
 **Notes on Frontend.** I$ fetches happen at the line level (`FETCH_WIDTH` bits per request), but instructions may be 32-bit or 16-bit (RVC). A single I$ request can yield multiple instructions if RVC is enabled. When two instructions come from the same fetched line, they **share** `if1_cycle` and `if2_cycle`. They will, however, have **distinct** `fe_cycle` values, because with `NrIssuePorts = 1` only one instruction can emerge from the frontend per cycle. The extractor maintains a per-line bookkeeping table keyed by `vaddr` to associate I$ request/response cycles back to instructions as they later emerge.
 
@@ -77,7 +77,7 @@ VCD scope paths depend on the testbench. The extractor accepts `--vcd-scope-pref
 TOP.ariane_testharness.i_ariane.i_cva6
 ```
 
-The exact sub-instance names (e.g., `id_stage_i` vs `i_id_stage`) need to be confirmed against a sample VCD during Phase 1. The signal *names* are stable; the instance prefixes may need a one-line config tweak.
+The exact sub-instance names (e.g., `id_stage_i` vs `i_id_stage`) need to be confirmed against a sample VCD during Phase 1. The signal _names_ are stable; the instance prefixes may need a one-line config tweak.
 
 ### 4.2 Core anchor signals (Phase 1–4)
 
@@ -199,26 +199,26 @@ These come from `cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv`. Several are deri
 
 **Source parameters** (set explicitly in the config package):
 
-| Parameter                | Value | Source                                                    |
-|--------------------------|-------|-----------------------------------------------------------|
-| `XLEN`                   | 64    | `CVA6ConfigXlen`                                          |
-| `SuperscalarEn`          | 0     | `cva6_cfg.SuperscalarEn` (off by default; can be enabled) |
-| `RVC`                    | 1     | `CVA6ConfigCExtEn`                                        |
-| `CvxifEn`                | 1     | `CVA6ConfigCvxifEn`                                       |
-| `NrCommitPorts`          | 2     | `cva6_cfg.NrCommitPorts` (hardcoded to 2 in user config)  |
-| `NrScoreboardEntries`    | 8     | `CVA6ConfigNrScoreboardEntries`                           |
-| `NrLoadBufEntries`       | 8     | `CVA6ConfigNrLoadBufEntries`                              |
-| `EnableAccelerator`      | 0     | (not enabled in this config)                              |
+| Parameter             | Value | Source                                                    |
+| --------------------- | ----- | --------------------------------------------------------- |
+| `XLEN`                | 64    | `CVA6ConfigXlen`                                          |
+| `SuperscalarEn`       | 0     | `cva6_cfg.SuperscalarEn` (off by default; can be enabled) |
+| `RVC`                 | 1     | `CVA6ConfigCExtEn`                                        |
+| `CvxifEn`             | 1     | `CVA6ConfigCvxifEn`                                       |
+| `NrCommitPorts`       | 2     | `cva6_cfg.NrCommitPorts` (hardcoded to 2 in user config)  |
+| `NrScoreboardEntries` | 8     | `CVA6ConfigNrScoreboardEntries`                           |
+| `NrLoadBufEntries`    | 8     | `CVA6ConfigNrLoadBufEntries`                              |
+| `EnableAccelerator`   | 0     | (not enabled in this config)                              |
 
 **Derived parameters** (computed from source parameters):
 
-| Parameter           | Formula                                              | Value |
-|---------------------|------------------------------------------------------|-------|
-| `NrIssuePorts`      | `SuperscalarEn ? 2 : 1`                              | 1     |
-| `FETCH_WIDTH`       | `SuperscalarEn ? 64 : 32`                            | 32    |
-| `INSTR_PER_FETCH`   | `FETCH_WIDTH / (RVC ? 16 : 32)`                      | 2     |
-| `NrWbPorts`         | `(CvxifEn \|\| EnableAccelerator) ? 5 : 4`           | 5     |
-| `TRANS_ID_BITS`     | `$clog2(NrScoreboardEntries)`                        | 3     |
+| Parameter         | Formula                                    | Value |
+| ----------------- | ------------------------------------------ | ----- |
+| `NrIssuePorts`    | `SuperscalarEn ? 2 : 1`                    | 1     |
+| `FETCH_WIDTH`     | `SuperscalarEn ? 64 : 32`                  | 32    |
+| `INSTR_PER_FETCH` | `FETCH_WIDTH / (RVC ? 16 : 32)`            | 2     |
+| `NrWbPorts`       | `(CvxifEn \|\| EnableAccelerator) ? 5 : 4` | 5     |
+| `TRANS_ID_BITS`   | `$clog2(NrScoreboardEntries)`              | 3     |
 
 **Final emitted JSON for our target config:**
 
@@ -241,7 +241,7 @@ These come from `cv64a6_imafdc_sv39_hpdcache_wb_config_pkg.sv`. Several are deri
 
 ### 5.4 `buffer_maxima`
 
-Observed maxima over the user window, mirroring MinorFlow's reporting. Several of these buffers have config-dependent maximum depths; the spec notes the bound where one exists, and the extractor reports the *observed* max.
+Observed maxima over the user window, mirroring MinorFlow's reporting. Several of these buffers have config-dependent maximum depths; the spec notes the bound where one exists, and the extractor reports the _observed_ max.
 
 ```json
 {
@@ -257,16 +257,16 @@ Observed maxima over the user window, mirroring MinorFlow's reporting. Several o
 
 Bounds derived from `config_params`:
 
-| Buffer                 | Hard bound                  |
-|------------------------|------------------------------|
-| `scoreboard_occupancy` | `NrScoreboardEntries` (= 8)  |
-| `load_buffer_occupancy`| `NrLoadBufEntries` (= 8)     |
-| `issue_width_observed` | `NrIssuePorts` (= 1)         |
-| `commit_width_observed`| `NrCommitPorts` (= 2)        |
-| `instr_queue_depth`    | fixed inside `instr_queue.sv`; observed-only |
-| `issue_fifo_depth`     | 2 (with `SuperscalarEn`), 1 (single-issue); observed-only |
+| Buffer                  | Hard bound                                                |
+| ----------------------- | --------------------------------------------------------- |
+| `scoreboard_occupancy`  | `NrScoreboardEntries` (= 8)                               |
+| `load_buffer_occupancy` | `NrLoadBufEntries` (= 8)                                  |
+| `issue_width_observed`  | `NrIssuePorts` (= 1)                                      |
+| `commit_width_observed` | `NrCommitPorts` (= 2)                                     |
+| `instr_queue_depth`     | fixed inside `instr_queue.sv`; observed-only              |
+| `issue_fifo_depth`      | 2 (with `SuperscalarEn`), 1 (single-issue); observed-only |
 
-The extractor should *assert* that observed values stay within the hard bounds and fail loudly if they don't (it would indicate a signal-mapping bug).
+The extractor should _assert_ that observed values stay within the hard bounds and fail loudly if they don't (it would indicate a signal-mapping bug).
 
 ### 5.5 Per-instruction record (`instructions[i]`)
 
@@ -301,39 +301,39 @@ The extractor should *assert* that observed values stay within the hard bounds a
 
 ### 5.6 Field reference
 
-| Field               | Type              | Description |
-|---------------------|-------------------|-------------|
-| `id`                | int               | Monotonic 0-indexed instance counter; unique per record. |
-| `pc`                | hex string        | Instruction PC from `scoreboard_entry_t.pc`. |
-| `instr_word`        | hex string        | Raw 32-bit instruction (post-decompression) from `orig_instr_i`. |
-| `disasm`            | string \| null    | Optional disassembly. Null if extractor not built with disassembler. |
-| `is_compressed`     | bool              | From `rvfi_is_compressed_o`. |
-| `is_warmup`         | bool              | True iff `fe_cycle < warmup_end_cycle`. |
-| `fu`                | string            | CVA6 `fu_t` enum value: `ALU`, `MULT`, `CTRL_FLOW`, `CSR`, `FPU`, `LOAD_UNIT`, `STORE_UNIT`, `NONE`. |
-| `fu_category`       | string            | MinorFlow-comparable bucket: `Int`, `FP`, `Mem`, `MemFP`. See §5.7. |
-| `rd`, `rs1`, `rs2`  | int               | Register addresses from `scoreboard_entry_t`. |
-| `trans_id`          | int \| null       | Scoreboard slot captured at `is_cycle` from `issue_pointer_q`. Null if flushed before issue. |
-| `fetch_port`        | int               | 0 or 1: which `NrIssuePorts` lane this instance came through. Always 0 in single-issue. |
-| `if1_cycle`         | int \| null       | VCD-absolute cycle when this instance's I$ line was requested. Null if frontend bypassed (e.g. NOP from a flush replay path). |
-| `if2_cycle`         | int \| null       | VCD-absolute cycle when this instance's I$ line was returned. Null if the request was killed (`kill_s1`/`kill_s2`). |
-| `fe_cycle`          | int               | VCD-absolute cycle of frontend→ID handshake. The instance *exists* iff this is set. |
-| `id_cycle`          | int \| null       | VCD-absolute cycle of decode handshake. Null if flushed before decode. |
-| `is_cycle`          | int \| null       | VCD-absolute cycle of issue handshake. Null if flushed before issue. |
-| `ex_cycle`          | int \| null       | `is_cycle + 1`. Null if not issued. |
-| `wb_cycle`          | int \| null       | VCD-absolute cycle of writeback. Null if not yet written back. |
-| `co_cycle`          | int \| null       | VCD-absolute cycle of commit. Null if flushed before commit. |
-| `flushed`           | bool              | True if this instance was killed before commit. |
-| `flush_reason`      | string \| null    | One of `branch_mispredict`, `exception`, `fence`, `csr_side_effect`, `unknown`. |
-| `lsu_state_history` | array \| null     | Optional Phase 5+ enrichment. For memory ops: array of `{cycle, state}` showing LSU FSM transitions. |
+| Field               | Type           | Description                                                                                                                   |
+| ------------------- | -------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `id`                | int            | Monotonic 0-indexed instance counter; unique per record.                                                                      |
+| `pc`                | hex string     | Instruction PC from `scoreboard_entry_t.pc`.                                                                                  |
+| `instr_word`        | hex string     | Raw 32-bit instruction (post-decompression) from `orig_instr_i`.                                                              |
+| `disasm`            | string \| null | Optional disassembly. Null if extractor not built with disassembler.                                                          |
+| `is_compressed`     | bool           | From `rvfi_is_compressed_o`.                                                                                                  |
+| `is_warmup`         | bool           | True iff `fe_cycle < warmup_end_cycle`.                                                                                       |
+| `fu`                | string         | CVA6 `fu_t` enum value: `ALU`, `MULT`, `CTRL_FLOW`, `CSR`, `FPU`, `LOAD_UNIT`, `STORE_UNIT`, `NONE`.                          |
+| `fu_category`       | string         | MinorFlow-comparable bucket: `Int`, `FP`, `Mem`, `MemFP`. See §5.7.                                                           |
+| `rd`, `rs1`, `rs2`  | int            | Register addresses from `scoreboard_entry_t`.                                                                                 |
+| `trans_id`          | int \| null    | Scoreboard slot captured at `is_cycle` from `issue_pointer_q`. Null if flushed before issue.                                  |
+| `fetch_port`        | int            | 0 or 1: which `NrIssuePorts` lane this instance came through. Always 0 in single-issue.                                       |
+| `if1_cycle`         | int \| null    | VCD-absolute cycle when this instance's I$ line was requested. Null if frontend bypassed (e.g. NOP from a flush replay path). |
+| `if2_cycle`         | int \| null    | VCD-absolute cycle when this instance's I$ line was returned. Null if the request was killed (`kill_s1`/`kill_s2`).           |
+| `fe_cycle`          | int            | VCD-absolute cycle of frontend→ID handshake. The instance _exists_ iff this is set.                                           |
+| `id_cycle`          | int \| null    | VCD-absolute cycle of decode handshake. Null if flushed before decode.                                                        |
+| `is_cycle`          | int \| null    | VCD-absolute cycle of issue handshake. Null if flushed before issue.                                                          |
+| `ex_cycle`          | int \| null    | `is_cycle + 1`. Null if not issued.                                                                                           |
+| `wb_cycle`          | int \| null    | VCD-absolute cycle of writeback. Null if not yet written back.                                                                |
+| `co_cycle`          | int \| null    | VCD-absolute cycle of commit. Null if flushed before commit.                                                                  |
+| `flushed`           | bool           | True if this instance was killed before commit.                                                                               |
+| `flush_reason`      | string \| null | One of `branch_mispredict`, `exception`, `fence`, `csr_side_effect`, `unknown`.                                               |
+| `lsu_state_history` | array \| null  | Optional Phase 5+ enrichment. For memory ops: array of `{cycle, state}` showing LSU FSM transitions.                          |
 
 ### 5.7 `fu_category` derivation
 
-| CVA6 `fu_t`        | Notes                                              | Category |
-|--------------------|----------------------------------------------------|----------|
+| CVA6 `fu_t`                               | Notes                              | Category |
+| ----------------------------------------- | ---------------------------------- | -------- |
 | `ALU`, `MULT`, `CTRL_FLOW`, `CSR`, `NONE` | Integer arithmetic, branches, CSRs | `Int`    |
-| `FPU`              | Floating-point arithmetic                           | `FP`     |
-| `LOAD_UNIT`, `STORE_UNIT` with int rd/rs            | Integer load/store        | `Mem`    |
-| `LOAD_UNIT`, `STORE_UNIT` with FP rd/rs             | FP load/store             | `MemFP`  |
+| `FPU`                                     | Floating-point arithmetic          | `FP`     |
+| `LOAD_UNIT`, `STORE_UNIT` with int rd/rs  | Integer load/store                 | `Mem`    |
+| `LOAD_UNIT`, `STORE_UNIT` with FP rd/rs   | FP load/store                      | `MemFP`  |
 
 The FP-or-int discrimination for memory ops uses `scoreboard_entry_t.fu == LOAD_UNIT/STORE_UNIT` combined with the `is_rd_fpr_flag` from the scoreboard's `mem_n` entry (or, equivalently, decoding the opcode: `flw`/`fld`/`fsw`/`fsd` → MemFP, else Mem).
 
@@ -382,7 +382,9 @@ A flushed branch-mispredict victim that was fetched but killed before decode. No
   "is_warmup": false,
   "fu": "ALU",
   "fu_category": "Int",
-  "rd": 0, "rs1": 0, "rs2": 0,
+  "rd": 0,
+  "rs1": 0,
+  "rs2": 0,
   "trans_id": null,
   "fetch_port": 0,
   "if1_cycle": 1497,
@@ -404,18 +406,38 @@ A pair of RVC instructions from the same 32-bit fetch line. Note the shared `if1
 ```json
 [
   {
-    "id": 100, "pc": "0x80000300", "instr_word": "0x00000513",
-    "is_compressed": true, "fu": "ALU", "fu_category": "Int",
-    "if1_cycle": 1600, "if2_cycle": 1602, "fe_cycle": 1603,
-    "id_cycle": 1604, "is_cycle": 1605, "ex_cycle": 1606,
-    "wb_cycle": 1606, "co_cycle": 1607, "flushed": false
+    "id": 100,
+    "pc": "0x80000300",
+    "instr_word": "0x00000513",
+    "is_compressed": true,
+    "fu": "ALU",
+    "fu_category": "Int",
+    "if1_cycle": 1600,
+    "if2_cycle": 1602,
+    "fe_cycle": 1603,
+    "id_cycle": 1604,
+    "is_cycle": 1605,
+    "ex_cycle": 1606,
+    "wb_cycle": 1606,
+    "co_cycle": 1607,
+    "flushed": false
   },
   {
-    "id": 101, "pc": "0x80000302", "instr_word": "0x00100613",
-    "is_compressed": true, "fu": "ALU", "fu_category": "Int",
-    "if1_cycle": 1600, "if2_cycle": 1602, "fe_cycle": 1604,
-    "id_cycle": 1605, "is_cycle": 1606, "ex_cycle": 1607,
-    "wb_cycle": 1607, "co_cycle": 1608, "flushed": false
+    "id": 101,
+    "pc": "0x80000302",
+    "instr_word": "0x00100613",
+    "is_compressed": true,
+    "fu": "ALU",
+    "fu_category": "Int",
+    "if1_cycle": 1600,
+    "if2_cycle": 1602,
+    "fe_cycle": 1604,
+    "id_cycle": 1605,
+    "is_cycle": 1606,
+    "ex_cycle": 1607,
+    "wb_cycle": 1607,
+    "co_cycle": 1608,
+    "flushed": false
   }
 ]
 ```
@@ -446,7 +468,7 @@ These are decisions deferred to discuss before or during Phase 1, not blockers f
 1. **Integer load/store coverage in the benchmark suite.** The `daxpy` prologue may suffice; if not, a 15-line C microbenchmark closes the gap. Resolution: inspect the `daxpy` disassembly during Phase 2.
 2. **Compressed instruction pairing semantics in the viewer.** When two RVC instructions come from the same 32-bit fetch word (shared `if1`/`if2`), how to visually indicate the pairing (a thin connecting line? shared cell shading?) is a viewer-side decision deferred to Phase 6.
 3. **HPDcache state instrumentation.** Phase 5+ work. The exact FSM signal paths inside `cva6_hpdcache_wrapper` need investigation; we'll inventory those once Phases 1–4 are running.
-4. **Killed fetch handling.** `icache_dreq_o.kill_s1`/`kill_s2` can cancel an in-flight fetch. When a kill fires, no instruction emerges from that fetch — there's no `fe_cycle` to bind the `if1`/`if2` to. The extractor needs a small grace period (a few cycles) to confirm a kill before discarding the line-tracking entry. Concrete policy: drop the entry if no `fe_cycle` is observed within `MAX_FETCH_LATENCY` cycles of `if1_cycle` *and* a `kill_*` signal fired in the interim.
+4. **Killed fetch handling.** `icache_dreq_o.kill_s1`/`kill_s2` can cancel an in-flight fetch. When a kill fires, no instruction emerges from that fetch — there's no `fe_cycle` to bind the `if1`/`if2` to. The extractor needs a small grace period (a few cycles) to confirm a kill before discarding the line-tracking entry. Concrete policy: drop the entry if no `fe_cycle` is observed within `MAX_FETCH_LATENCY` cycles of `if1_cycle` _and_ a `kill_*` signal fired in the interim.
 
 ---
 
