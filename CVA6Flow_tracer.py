@@ -52,6 +52,7 @@ Usage:
 """
 
 import argparse
+import bisect
 import json
 import re
 import sys
@@ -1035,17 +1036,26 @@ def match_records_to_events(records, events):
     by_word = defaultdict(list)
     for ev in events:
         by_word[ev.vaddr_word].append(ev)
+    # Parallel list of fe2_cycle keys per word, kept sorted alongside the
+    # events, so the per-record lookups below can binary-search for the event
+    # window instead of scanning every event for a word. On a hot loop one word
+    # accumulates an event per iteration, so a linear scan made the whole match
+    # quadratic and could hang on a large trace. Every lookup here is bounded to
+    # a fe2 window (a qualifying event has fe2 >= fe1 >= the threshold, so the
+    # lower bound is a bisect too), which keeps it near linear.
+    by_word_fe2 = {}
     for word in by_word:
         by_word[word].sort(key=lambda e: e.fe2_cycle)
+        by_word_fe2[word] = [e.fe2_cycle for e in by_word[word]]
 
     def find_best(word, fe_cycle):
         candidates = by_word.get(word, [])
-        best = None
-        for ev in candidates:
-            if ev.fe2_cycle > fe_cycle:
-                break
-            best = ev
-        return best
+        if not candidates:
+            return None
+        idx = bisect.bisect_right(by_word_fe2[word], fe_cycle) - 1
+        if idx < 0:
+            return None
+        return candidates[idx]
 
     n_matched = 0
     n_unmatched = 0
@@ -1098,12 +1108,14 @@ def match_records_to_events(records, events):
             hi_candidates = by_word.get(hi_word, [])
             best_hi = None
             lo_floor = rec.if1_lo if rec.if1_lo is not None else 0
-            for ev in hi_candidates:
-                if ev.fe2_cycle > rec.fe_cycle:
+            hi_fe2 = by_word_fe2.get(hi_word, [])
+            hi_top = bisect.bisect_right(hi_fe2, rec.fe_cycle)
+            hi_start = bisect.bisect_left(hi_fe2, lo_floor)
+            for i in range(hi_top - 1, hi_start - 1, -1):
+                ev = hi_candidates[i]
+                if ev.fe1_cycle >= lo_floor:
+                    best_hi = ev
                     break
-                if ev.fe1_cycle < lo_floor:
-                    continue
-                best_hi = ev
             if best_hi is not None:
                 rec.if1_hi = best_hi.fe1_cycle
                 rec.if2_hi = best_hi.fe2_cycle
@@ -1157,9 +1169,11 @@ def match_records_to_events(records, events):
         lo_word = pc_int & ~FETCH_OFFSET_MASK
         candidates = by_word.get(lo_word, [])
         new_ev = None
-        for ev in candidates:
-            if ev.fe2_cycle > rec.fe_cycle:
-                break
+        lo_fe2 = by_word_fe2.get(lo_word, [])
+        lo_start = bisect.bisect_left(lo_fe2, prev_if1)
+        lo_top = bisect.bisect_right(lo_fe2, rec.fe_cycle)
+        for i in range(lo_start, lo_top):
+            ev = candidates[i]
             if ev.fe1_cycle >= prev_if1:
                 new_ev = ev
                 break
@@ -1173,9 +1187,11 @@ def match_records_to_events(records, events):
                 hi_word = (pc_int + 2) & ~FETCH_OFFSET_MASK
                 hi_candidates = by_word.get(hi_word, [])
                 new_hi = None
-                for ev in hi_candidates:
-                    if ev.fe2_cycle > rec.fe_cycle:
-                        break
+                hi_fe2b = by_word_fe2.get(hi_word, [])
+                hi_start2 = bisect.bisect_left(hi_fe2b, new_ev.fe1_cycle)
+                hi_top2 = bisect.bisect_right(hi_fe2b, rec.fe_cycle)
+                for i in range(hi_start2, hi_top2):
+                    ev = hi_candidates[i]
                     if ev.fe1_cycle >= new_ev.fe1_cycle:
                         new_hi = ev
                         break
@@ -2447,12 +2463,18 @@ class PipelineTracker:
         admission) get `dc_events=[]` and all booleans False.
         Non-Mem records are left untouched.
         """
-        # Index events by cycle for the window scan. Events are
-        # already in cycle order (on_dcache_sample is called once
-        # per rising edge in ascending cycle order). We exploit that
-        # to short-circuit when the cursor passes the window.
+        # Index events by cycle for the window scan. Events are already in
+        # cycle order (on_dcache_sample is called once per rising edge in
+        # ascending cycle order), so ev_cycles is a sorted key array that lets
+        # each record binary-search straight to the first event in its window
+        # instead of rescanning the whole log from cycle zero. rfsm_sorted does
+        # the same for the refill-overlap test. Both are built once. On a large
+        # trace the old per-record linear scan was records times events, which
+        # is the slow tail that made a big VCD look like it hung after parsing.
         evlog = self._dc_events
         n_events = len(evlog)
+        ev_cycles = [ev["cycle"] for ev in evlog]
+        rfsm_sorted = sorted(self._rfsm_active_cycles)
 
         # Track which sid=3 alloc events have been attributed to a
         # store. Stores complete (FSM → IDLE) several cycles BEFORE
@@ -2481,8 +2503,9 @@ class PipelineTracker:
                 rec.dc_events = []
                 continue
 
-            # Linear scan with binary-search would be faster, but
-            # 1k–5k records × 100s of events each is fast enough.
+            # Bounded to this record's [admit, window_end] via the bisect
+            # below, so the work per record is proportional to the events in
+            # its window, not the whole log.
             events_in_window = []
             primary_miss = False
             coalesced = False
@@ -2500,11 +2523,10 @@ class PipelineTracker:
             else:
                 window_end = complete
 
-            for ev_idx in range(n_events):
+            start_idx = bisect.bisect_left(ev_cycles, admit)
+            for ev_idx in range(start_idx, n_events):
                 ev = evlog[ev_idx]
                 c = ev["cycle"]
-                if c < admit:
-                    continue
                 if c > window_end:
                     break
                 events_in_window.append(ev)
@@ -2537,10 +2559,9 @@ class PipelineTracker:
 
             # Refill overlap: any cycle in [admit, complete] in the
             # rFSM-active set. Set lookup is O(1) per cycle.
-            refill_overlap = any(
-                c in self._rfsm_active_cycles
-                for c in range(admit, complete + 1)
-            )
+            rf_lo = bisect.bisect_left(rfsm_sorted, admit)
+            refill_overlap = (rf_lo < len(rfsm_sorted)
+                              and rfsm_sorted[rf_lo] <= complete)
 
             rec.dc_events = events_in_window
 
@@ -3172,7 +3193,7 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         FWD_RS1, FWD_RS2, FWD_RS3, IHZ_RS1, IHZ_RS2, IHZ_RS3))
     if FWD_AVAILABLE:
         stagelog("Phase 8a: issue_read_operands forwarding signals resolved",
-              file=sys.stderr)
+                 file=sys.stderr)
     else:
         missing = [name for name, sig in [
             ("forward_rs1",   FWD_RS1), ("forward_rs2", FWD_RS2),
@@ -3180,8 +3201,8 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ("idx_hzd_rs2[0]", IHZ_RS2), ("idx_hzd_rs3[0]", IHZ_RS3),
         ] if sig is None]
         stagelog("WARNING: Phase 8a - forwarding signals not resolved. "
-              "fwd_rsX_* fields will be left null on all records. "
-              "Missing: " + ", ".join(missing), file=sys.stderr)
+                 "fwd_rsX_* fields will be left null on all records. "
+                 "Missing: " + ", ".join(missing), file=sys.stderr)
     IV = single_id.get("issue_stage_i.i_scoreboard.issue_instr_valid_o")
     IA = single_id.get("issue_stage_i.i_scoreboard.issue_ack_i")
     IPTR = single_id.get("issue_stage_i.i_scoreboard.issue_pointer_q")
@@ -3249,11 +3270,11 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             break
     if 0 < detected_nr_sb < NR_SB:
         stagelog(f"Scoreboard depth: detected {detected_nr_sb} slots in VCD "
-              f"(tracer default NR_SB_ENTRIES={NR_SB}). Adapting NR_SB and "
-              f"per-slot arrays. This usually means the build has "
-              f"NrScoreboardEntries={detected_nr_sb} (TRANS_ID_BITS="
-              f"{(detected_nr_sb - 1).bit_length()}).",
-              file=sys.stderr)
+                 f"(tracer default NR_SB_ENTRIES={NR_SB}). Adapting NR_SB and "
+                 f"per-slot arrays. This usually means the build has "
+                 f"NrScoreboardEntries={detected_nr_sb} (TRANS_ID_BITS="
+                 f"{(detected_nr_sb - 1).bit_length()}).",
+                 file=sys.stderr)
         NR_SB = detected_nr_sb
         MEMQ_FU = MEMQ_FU[:NR_SB]
         MEMQ_RS1 = MEMQ_RS1[:NR_SB]
@@ -3267,47 +3288,47 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     MEMQ_BP_AVAILABLE = (memq_bp_resolved == NR_SB)
     if MEMQ_BP_AVAILABLE:
         stagelog("Phase 7a: mem_q[*].sbe.bp.cf resolved. Using authoritative "
-              "reads at writeback to correct the pre-edge decoded_instr_i "
-              "bp.cf misattribution for back-to-back issues",
-              file=sys.stderr)
+                 "reads at writeback to correct the pre-edge decoded_instr_i "
+                 "bp.cf misattribution for back-to-back issues",
+                 file=sys.stderr)
     else:
         stagelog(f"WARNING: Phase 7a. mem_q[*].sbe.bp.cf not resolved "
-              f"({memq_bp_resolved}/{NR_SB} slots found). Falling back to "
-              f"the pre-edge decoded_instr_i.bp.cf snapshot, which is "
-              f"INCORRECT for back-to-back issues (the typical loop case): "
-              f"the pre-edge sample reads the PREVIOUS instruction's bp.cf "
-              f"because issue_q only flips at the rising edge. Most loop "
-              f"branches will appear as predicted_cf=NoCF in the output. "
-              f"To fix: ensure your Verilator dump includes mem_q[N].sbe.bp "
-              f"for all scoreboard slots.",
-              file=sys.stderr)
+                 f"({memq_bp_resolved}/{NR_SB} slots found). Falling back to "
+                 f"the pre-edge decoded_instr_i.bp.cf snapshot, which is "
+                 f"INCORRECT for back-to-back issues (the typical loop case): "
+                 f"the pre-edge sample reads the PREVIOUS instruction's bp.cf "
+                 f"because issue_q only flips at the rising edge. Most loop "
+                 f"branches will appear as predicted_cf=NoCF in the output. "
+                 f"To fix: ensure your Verilator dump includes mem_q[N].sbe.bp "
+                 f"for all scoreboard slots.",
+                 file=sys.stderr)
 
     # Phase 7a: decoded_instr_i[0].bp.{cf,predict_address} availability.
     BP_DECODE_AVAILABLE = (DBP_CF is not None and DBP_TGT is not None)
     if BP_DECODE_AVAILABLE:
         stagelog("Phase 7a: decoded_instr_i[0].bp.{cf,predict_address} resolved. "
-              "using pre-edge snapshot for prediction capture",
-              file=sys.stderr)
+                 "using pre-edge snapshot for prediction capture",
+                 file=sys.stderr)
     else:
         missing = [name for name, sig in [
             ("decoded_instr_i[0].bp.cf", DBP_CF),
             ("decoded_instr_i[0].bp.predict_address", DBP_TGT),
         ] if sig is None]
         stagelog("WARNING: Phase 7a. Decoded_instr_i.bp.* not resolved. "
-              "bp_predicted_* fields will be left None on all records. "
-              "Missing: " + ", ".join(missing), file=sys.stderr)
+                 "bp_predicted_* fields will be left None on all records. "
+                 "Missing: " + ", ".join(missing), file=sys.stderr)
 
     if MEMQ_AVAILABLE:
         stagelog(f"mem_q ring buffer: all {NR_SB} slots resolved. Using authoritative reads",
-              file=sys.stderr)
+                 file=sys.stderr)
     elif memq_resolved > 0:
         stagelog(f"mem_q ring buffer: only {memq_resolved}/{NR_SB} slots resolved. "
-              "falling back to decode-time pre-edge capture",
-              file=sys.stderr)
+                 "falling back to decode-time pre-edge capture",
+                 file=sys.stderr)
         MEMQ_AVAILABLE = False
     else:
         stagelog("mem_q ring buffer: NOT exposed in VCD. Falling back to decode-time pre-edge capture",
-              file=sys.stderr)
+                 file=sys.stderr)
 
     CA = single_id.get("commit_stage_i.commit_ack_o")
     CPTR_PORTS = [single_id.get(
@@ -3321,8 +3342,8 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     FUI = single_id.get("issue_stage_i.i_scoreboard.flush_unissued_instr_i")
     if FUI is None:
         stagelog("WARNING: flush_unissued_instr_i not resolved. Phantom-decode "
-              "gating will be DISABLED and the +N slot drift may return.",
-              file=sys.stderr)
+                 "gating will be DISABLED and the +N slot drift may return.",
+                 file=sys.stderr)
 
     # Phase 4b: I$ signal lookups for ICacheTimeline.on_cycle. STATE_Q
     # is the I$ controller's FSM (cva6_icache.sv:122). The dreq_o
@@ -3345,8 +3366,8 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             f"ex_stage_i.dcache_req_ports_o[{p}].data_req"
             for p in range(DCACHE_REQ_PORTS))
         stagelog("CSR-equivalent access counters enabled "
-              f"(icache_dreq_o.req + {port_list})",
-              file=sys.stderr)
+                 f"(icache_dreq_o.req + {port_list})",
+                 file=sys.stderr)
     else:
         missing = []
         if IC_REQ is None:
@@ -3355,9 +3376,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             if s is None:
                 missing.append(f"ex_stage_i.dcache_req_ports_o[{p}].data_req")
         stagelog(f"WARNING: CSR-equivalent access counters not all resolved. "
-              f"viewer will fall back to record-derived access counts. "
-              f"Missing: {', '.join(missing)}",
-              file=sys.stderr)
+                 f"viewer will fall back to record-derived access counts. "
+                 f"Missing: {', '.join(missing)}",
+                 file=sys.stderr)
 
     # Per-cycle access-event cycle lists. Filled by at_rising_edge
     # below when the signal is high at the rising edge (i.e. The
@@ -3376,18 +3397,18 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                           for s in (STATE_Q, IC_VLD, IC_VADDR, IC_K2))
     if not icache_resolved:
         stagelog("WARNING: Phase 4b I$ signals not all resolved. "
-              "if1_lo/if2_lo/if1_hi/if2_hi/ic_miss will be left as None "
-              "on every record. Missing: " +
-              ", ".join(name for name, s in [
-                  ("state_q", STATE_Q),
-                  ("dreq_o.valid", IC_VLD),
-                  ("dreq_o.vaddr", IC_VADDR),
-                  ("dreq_i.kill_s2", IC_K2),
-              ] if s is None),
-              file=sys.stderr)
+                 "if1_lo/if2_lo/if1_hi/if2_hi/ic_miss will be left as None "
+                 "on every record. Missing: " +
+                 ", ".join(name for name, s in [
+                     ("state_q", STATE_Q),
+                     ("dreq_o.valid", IC_VLD),
+                     ("dreq_o.vaddr", IC_VADDR),
+                     ("dreq_i.kill_s2", IC_K2),
+                 ] if s is None),
+                 file=sys.stderr)
     else:
         stagelog("Phase 4b I$ tracking enabled (state_q + frontend dreq mirror)",
-              file=sys.stderr)
+                 file=sys.stderr)
 
     # Phase 8b: instr_realign output flag for the per-cycle pulse
     # counter. Optional. If absent, wraps_line is still populated
@@ -3395,14 +3416,14 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     SVU = single_id.get("i_frontend.i_instr_realign.serving_unaligned_o")
     if SVU is None:
         stagelog("WARNING: Phase 8b serving_unaligned_o not resolved. "
-              "wraps_line will still be set per record from PC, but the "
-              "realigner-pulse cross-validation count will be 0",
-              file=sys.stderr)
+                 "wraps_line will still be set per record from PC, but the "
+                 "realigner-pulse cross-validation count will be 0",
+                 file=sys.stderr)
     else:
         stagelog("Phase 8b instr_realign tracking enabled "
-              "(serving_unaligned_o pulse counter for wraps_line "
-              "cross-validation)",
-              file=sys.stderr)
+                 "(serving_unaligned_o pulse counter for wraps_line "
+                 "cross-validation)",
+                 file=sys.stderr)
 
     # Phase 6a: LSU FSM state register lookups.
     LOAD_STATE = single_id.get("ex_stage_i.lsu_i.i_load_unit.state_q")
@@ -3491,13 +3512,13 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ("resolved_branch_i.cf_type", RB_CFT),
         ] if sig is None]
         stagelog("WARNING: Phase 7a branch-resolve signals not all "
-              "resolved. bp_resolved_* fields will be left None "
-              "on all records. Missing: " + ", ".join(missing),
-              file=sys.stderr)
+                 "resolved. bp_resolved_* fields will be left None "
+                 "on all records. Missing: " + ", ".join(missing),
+                 file=sys.stderr)
     else:
         stagelog("Phase 7a branch resolution tracking enabled "
-              "(resolved_branch_i: valid + pc + target + taken + "
-              "mispredict + cf_type)", file=sys.stderr)
+                 "(resolved_branch_i: valid + pc + target + taken + "
+                 "mispredict + cf_type)", file=sys.stderr)
 
     if not lsu_resolved:
         missing = []
@@ -3506,8 +3527,8 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         if STORE_STATE is None:
             missing.append("i_store_unit.state_q")
         stagelog("WARNING: Phase 6a LSU signals not all resolved. "
-              "lsu_state_history will be left as None on every record. "
-              "Missing: " + ", ".join(missing), file=sys.stderr)
+                 "lsu_state_history will be left as None on every record. "
+                 "Missing: " + ", ".join(missing), file=sys.stderr)
     else:
         extras = []
         if not LSU_CTRL_TID:
@@ -3519,9 +3540,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         extras_msg = ("" if not extras
                       else f". Degraded (missing: {', '.join(extras)})")
         stagelog("Phase 6a LSU FSM tracking enabled "
-              f"(load_unit.state_q + store_unit.state_q + "
-              f"lsu_ctrl.trans_id + pop_ld + pop_st){extras_msg}",
-              file=sys.stderr)
+                 f"(load_unit.state_q + store_unit.state_q + "
+                 f"lsu_ctrl.trans_id + pop_ld + pop_st){extras_msg}",
+                 file=sys.stderr)
 
     # Phase 6b: announce dcache event tracking status.
     if not dcache_resolved:
@@ -3539,12 +3560,12 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ("refill_core_rsp_o.tid", DC_RTID),
         ] if sig is None]
         stagelog(f"WARNING: Phase 6b dcache signals not all resolved. "
-              f"dc_* fields will be left at defaults. "
-              f"Missing: {', '.join(missing)}", file=sys.stderr)
+                 f"dc_* fields will be left at defaults. "
+                 f"Missing: {', '.join(missing)}", file=sys.stderr)
     else:
         stagelog("Phase 6b D$ event tracking enabled "
-              "(mshr_alloc + mshr_check + refill_fsm + refill_rsp)",
-              file=sys.stderr)
+                 "(mshr_alloc + mshr_check + refill_fsm + refill_rsp)",
+                 file=sys.stderr)
 
     # Phase 7b: announce writeback (flush/wback) tracking status.
     if not wback_resolved:
@@ -3562,21 +3583,21 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             ("flush_ack_nline", WB_ACK_NL),
         ] if sig is None]
         stagelog("WARNING: Phase 7b writeback signals not all resolved. "
-              "writebacks[] will be empty. Missing: " + ", ".join(missing),
-              file=sys.stderr)
+                 "writebacks[] will be empty. Missing: " + ", ".join(missing),
+                 file=sys.stderr)
     else:
         stagelog("Phase 7b dirty-victim writeback tracking enabled "
-              "(flush alloc + mem_req_write_flush + mem_resp_write_flush)",
-              file=sys.stderr)
+                 "(flush alloc + mem_req_write_flush + mem_resp_write_flush)",
+                 file=sys.stderr)
         if link_resolved:
             stagelog("Phase 7b writeback<->eviction linkage enabled "
-                  "(mshr_alloc_wback + victim_way + flush_alloc_way, "
-                  "join by (set,way))", file=sys.stderr)
+                     "(mshr_alloc_wback + victim_way + flush_alloc_way, "
+                     "join by (set,way))", file=sys.stderr)
         else:
             stagelog("WARNING: Phase 7b linkage signals not all resolved. "
-                  "writebacks will have linked=false. (need "
-                  "mshr_alloc_wback_i, mshr_alloc_victim_way_i, "
-                  "flush_alloc_way)", file=sys.stderr)
+                     "writebacks will have linked=false. (need "
+                     "mshr_alloc_wback_i, mshr_alloc_victim_way_i, "
+                     "flush_alloc_way)", file=sys.stderr)
 
     cycle = -1
     first_ts_seen = False
@@ -4089,10 +4110,10 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         extra.append(f"{n_synth} synthesized (cached, no fresh event)")
     extra_str = (", " + ", ".join(extra)) if extra else ""
     stagelog(f"Phase 4b: {n_ic_events} I$ events "
-          f"({n_ic_hits} hits, {n_ic_misses} misses). "
-          f"{n_matched} records matched, {n_unmatched} unmatched"
-          + extra_str,
-          file=sys.stderr)
+             f"({n_ic_hits} hits, {n_ic_misses} misses). "
+             f"{n_matched} records matched, {n_unmatched} unmatched"
+             + extra_str,
+             file=sys.stderr)
     # Phase 8b: wraps_line summary. Compare PC-determinative count to
     # the realigner-signal pulse counter for cross-validation. The two
     # should agree up to flushed-mid-realignment edge cases.
@@ -4106,13 +4127,13 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     else:
         records_per_run = "records/run = N/A"
     stagelog(f"Phase 8b: wraps_line records = {n_wraps} total "
-          f"({n_wraps_committed} committed, "
-          f"{n_wraps - n_wraps_committed} flushed). "
-          f"{n_wraps_with_hi} bound second fetch (if1_hi/if2_hi). "
-          f"Realigner: {tracker.n_realigner_unaligned_starts} runs "
-          f"(0→1 transitions), {tracker.n_realigner_unaligned_cycles} "
-          f"stall cycles. {records_per_run}.",
-          file=sys.stderr)
+             f"({n_wraps_committed} committed, "
+             f"{n_wraps - n_wraps_committed} flushed). "
+             f"{n_wraps_with_hi} bound second fetch (if1_hi/if2_hi). "
+             f"Realigner: {tracker.n_realigner_unaligned_starts} runs "
+             f"(0→1 transitions), {tracker.n_realigner_unaligned_cycles} "
+             f"stall cycles. {records_per_run}.",
+             file=sys.stderr)
 
     # Phase 8c: attribute bubbles to their causer + recovery instructions.
     # Walks completed[] in id order, finds [non-flushed][flushed run]
@@ -4125,13 +4146,13 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                               for r in tracker.completed
                               if r.bubble_caused_cycles)
     stagelog(f"Phase 8c: branch bubbles. "
-          f"mispred={bubble_counts['mispred']}, "
-          f"unpred={bubble_counts['unpred']}, "
-          f"flush_other={bubble_counts['flush_other']}, "
-          f"pred_taken={bubble_counts['pred_taken']} "
-          f"({n_bub_total} causers, {n_bub_flushed_total} total "
-          f"wrong-path records flushed).",
-          file=sys.stderr)
+             f"mispred={bubble_counts['mispred']}, "
+             f"unpred={bubble_counts['unpred']}, "
+             f"flush_other={bubble_counts['flush_other']}, "
+             f"pred_taken={bubble_counts['pred_taken']} "
+             f"({n_bub_total} causers, {n_bub_flushed_total} total "
+             f"wrong-path records flushed).",
+             file=sys.stderr)
     # Diagnostic: how does the per-record bp_mispredict population
     # break down vs the 8c classifications? Cross-checks against
     # Phase 7a's mispredict pulse count. The accounting equation:
@@ -4147,14 +4168,14 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                    - bubble_diag["bp_mispredict_no_followers"]
                    - bubble_diag["bp_mispredict_end_of_trace"])
     stagelog(f"Phase 8c diag: {bubble_diag['bp_mispredict_total']} records "
-          f"have bp_mispredict=True "
-          f"({bubble_diag['bp_mispredict_flushed']} flushed, "
-          f"{classified} tagged as causers, "
-          f"{bubble_diag['bp_mispredict_no_followers']} had no "
-          f"flushed followers, "
-          f"{bubble_diag['bp_mispredict_end_of_trace']} were end-of-trace, "
-          f"{unaccounted} unaccounted).",
-          file=sys.stderr)
+             f"have bp_mispredict=True "
+             f"({bubble_diag['bp_mispredict_flushed']} flushed, "
+             f"{classified} tagged as causers, "
+             f"{bubble_diag['bp_mispredict_no_followers']} had no "
+             f"flushed followers, "
+             f"{bubble_diag['bp_mispredict_end_of_trace']} were end-of-trace, "
+             f"{unaccounted} unaccounted).",
+             file=sys.stderr)
 
     # Phase 6a: count how many LOAD/STORE records got an FSM trace.
     # A trace is "present" when lsu_state_history has at least one
@@ -4177,9 +4198,9 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
             else:
                 n_store_untraced += 1
     stagelog(f"Phase 6a: LSU FSM traces. "
-          f"loads {n_load_traced} traced / {n_load_untraced} untraced. "
-          f"stores {n_store_traced} traced / {n_store_untraced} untraced",
-          file=sys.stderr)
+             f"loads {n_load_traced} traced / {n_load_untraced} untraced. "
+             f"stores {n_store_traced} traced / {n_store_untraced} untraced",
+             file=sys.stderr)
 
     # Phase 6b: attribute D$ events to records.
     if dcache_resolved:
@@ -4775,7 +4796,8 @@ def main():
     n_commit_ports = CV64A6_HPDC_WB_DEFAULTS["NrCommitPorts"]
 
     file_size = vcd_path.stat().st_size
-    print(f"[INFO] Reading {vcd_path} ({file_size / (1024 ** 3):.3f} GB)", file=sys.stderr)
+    print(
+        f"[INFO] Reading {vcd_path} ({file_size / (1024 ** 3):.3f} GB)", file=sys.stderr)
     if args.user_entry_pc:
         print(f"[INFO] User entry PC: {args.user_entry_pc}", file=sys.stderr)
     start = time.time()
@@ -4992,9 +5014,9 @@ def main():
             n_ann, n_no_pc, n_unmapped = apply_disasm(
                 tracker.completed, disasm_map)
             stagelog(f"Phase 5: parsed {len(disasm_map):,} disasm entries from "
-                  f"{disasm_path.name}. Annotated {n_ann:,} records "
-                  f"({n_unmapped:,} unmapped, {n_no_pc:,} without PC)",
-                  file=sys.stderr)
+                     f"{disasm_path.name}. Annotated {n_ann:,} records "
+                     f"({n_unmapped:,} unmapped, {n_no_pc:,} without PC)",
+                     file=sys.stderr)
             stats["disasm_annotated"] = n_ann
             stats["disasm_unmapped"] = n_unmapped
             stats["disasm_no_pc"] = n_no_pc

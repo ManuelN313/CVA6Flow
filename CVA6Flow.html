@@ -127,10 +127,12 @@
       background: var(--bg4);
       color: var(--text);
     }
+
     .tbtn:disabled {
       opacity: 0.4;
       cursor: not-allowed;
     }
+
     .tbtn:disabled:hover {
       background: var(--bg3);
       color: var(--text2);
@@ -356,6 +358,7 @@
       font-size: 9px;
       gap: 12px;
     }
+
     #lblhead .lgi {
       display: inline-flex;
       align-items: center;
@@ -385,11 +388,33 @@
       font-family: var(--font-mono);
     }
 
-    .lblrow .seq  { text-align: right; color: #383838; font-size: 9px; flex: 0 0 auto; }
-    .lblrow .pc   { color: #505070; font-size: 9px; flex: 0 0 auto; }
-    .lblrow .mk   { font-size: 10px; flex: 0 0 auto; user-select: none; -webkit-user-select: none; }
-    .lblrow .mnem { font-size: 10px; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis;
-                    font-family: var(--font-sans); }
+    .lblrow .seq {
+      text-align: right;
+      color: #383838;
+      font-size: 9px;
+      flex: 0 0 auto;
+    }
+
+    .lblrow .pc {
+      color: #505070;
+      font-size: 9px;
+      flex: 0 0 auto;
+    }
+
+    .lblrow .mk {
+      font-size: 10px;
+      flex: 0 0 auto;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    .lblrow .mnem {
+      font-size: 10px;
+      flex: 1 1 auto;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-family: var(--font-sans);
+    }
 
     #tlwrap {
       flex: 1;
@@ -424,11 +449,29 @@
       scrollbar-width: auto;
       scrollbar-color: #4a4a4e #1a1a1c;
     }
-    #tlscroll::-webkit-scrollbar { width: 14px; height: 14px; }
-    #tlscroll::-webkit-scrollbar-track { background: #1a1a1c; }
-    #tlscroll::-webkit-scrollbar-thumb { background: #4a4a4e; border-radius: 7px; border: 3px solid #1a1a1c; }
-    #tlscroll::-webkit-scrollbar-thumb:hover { background: #5a5a60; }
-    #tlscroll::-webkit-scrollbar-corner { background: #1a1a1c; }
+
+    #tlscroll::-webkit-scrollbar {
+      width: 14px;
+      height: 14px;
+    }
+
+    #tlscroll::-webkit-scrollbar-track {
+      background: #1a1a1c;
+    }
+
+    #tlscroll::-webkit-scrollbar-thumb {
+      background: #4a4a4e;
+      border-radius: 7px;
+      border: 3px solid #1a1a1c;
+    }
+
+    #tlscroll::-webkit-scrollbar-thumb:hover {
+      background: #5a5a60;
+    }
+
+    #tlscroll::-webkit-scrollbar-corner {
+      background: #1a1a1c;
+    }
 
     #tlspacer {
       position: absolute;
@@ -765,7 +808,11 @@
       align-items: center;
       justify-content: center;
     }
-    #loading-overlay.show { display: flex; }
+
+    #loading-overlay.show {
+      display: flex;
+    }
+
     #loading-box {
       display: flex;
       flex-direction: column;
@@ -777,6 +824,7 @@
       border-radius: 10px;
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
     }
+
     #loading-spinner {
       width: 34px;
       height: 34px;
@@ -785,9 +833,24 @@
       border-radius: 50%;
       animation: lf-spin 0.8s linear infinite;
     }
-    @keyframes lf-spin { to { transform: rotate(360deg); } }
-    #loading-text { font-size: 13px; color: var(--text); font-weight: 500; }
-    #loading-sub { font-size: 11px; color: var(--text3); min-height: 14px; }
+
+    @keyframes lf-spin {
+      to {
+        transform: rotate(360deg);
+      }
+    }
+
+    #loading-text {
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    #loading-sub {
+      font-size: 11px;
+      color: var(--text3);
+      min-height: 14px;
+    }
 
     #err-modal {
       width: 560px;
@@ -961,13 +1024,16 @@
     <div id="main">
       <div id="lblpanel">
         <div id="lblhead">
-          <span id="pcfind" title="Find instructions by memory address (hexadecimal). Matches anywhere in the PC and is searched across the whole fetch range window, not only the rows on screen. Enter or the arrows step through the matches.">
+          <span id="pcfind"
+            title="Find instructions by memory address (hexadecimal). Matches anywhere in the PC and is searched across the whole fetch range window, not only the rows on screen. Enter or the arrows step through the matches.">
             <input id="pcq" placeholder="find pc" spellcheck="false" autocomplete="off">
             <span id="pcn">0/0</span>
             <button id="pcprev" title="Previous match.">▲</button>
             <button id="pcnext" title="Next match.">▼</button>
           </span>
-          <span class="lgnd"><span class="lgi"><span class="cmpkey">▪</span>compressed</span><span class="lgi"><span class="wrapkey">↪</span>wraps fetch line</span></span></div>
+          <span class="lgnd"><span class="lgi"><span class="cmpkey">▪</span>compressed</span><span class="lgi"><span
+                class="wrapkey">↪</span>wraps fetch line</span></span>
+        </div>
         <div id="lbllist"></div>
       </div>
       <div id="tlwrap">
@@ -992,25 +1058,37 @@
       <span title="Functional unit class that handled the instruction.">FU: <span class="hi" id="s-f">-</span></span>
       <span title="Program counter.">PC: <span class="hi" id="s-p">-</span></span>
       <span class="vsep">│</span>
-      <span title="Cycles in the visible window, counting every stall. The number in parentheses, when shown, drops the leading redirect bubble inherited from a branch outside the window.">Cycles: <span class="hi" id="s-cyc">-</span></span>
+      <span
+        title="Cycles in the visible window, counting every stall. The number in parentheses, when shown, drops the leading redirect bubble inherited from a branch outside the window.">Cycles:
+        <span class="hi" id="s-cyc">-</span></span>
       <span title="Instructions that reached the front-end (committed + flushed).">Fetched: <span class="hi"
           id="s-fet">-</span></span>
       <span title="Committed (retired) instructions.">Committed: <span class="hi" id="s-cmt">-</span></span>
-      <span title="Speculative instructions discarded before commit.">Flushed: <span class="hi" id="s-flsh">-</span></span>
-      <span title="16-bit compressed (RVC) instructions in this window.">Compress: <span class="hi" id="s-cmp">-</span></span>
-      <span title="Instructions whose fetch spanned two cache lines (wraps line) in this window.">Wrap: <span class="hi" id="s-wrp">-</span></span>
-      <span title="ICache miss events from the ICache FSM.">IC✗: <span class="hi"
+      <span title="Speculative instructions discarded before commit.">Flushed: <span class="hi"
+          id="s-flsh">-</span></span>
+      <span title="16-bit compressed (RVC) instructions in this window.">Compress: <span class="hi"
+          id="s-cmp">-</span></span>
+      <span title="Instructions whose fetch spanned two cache lines (wraps line) in this window.">Wrap: <span class="hi"
+          id="s-wrp">-</span></span>
+      <span
+        title="ICache miss events (from the ICache FSM) whose cycle lies in the visible fetch-range window. A window count over cycles, matching the RTL perf counter, so it includes speculative and page-table-walk fetches and, with the FE-stall toggle on, any fe-wait cycles the window spans. The figure in parentheses, when shown, is the subset caused by the listed instructions (per-record misses deduped by fetch cycle so a shared fetch counts once), which on a small range is smaller than the window count.">IC✗<sup
+          style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
           id="s-icm">-</span></span>
       <span
-        title="DCache miss events (non-prefetch). Split: ld (loads), st (stores), other (page-table walk, accel, cache maintenance).">DC✗:
+        title="DCache miss events (non-prefetch) whose cycle lies in the visible fetch-range window. A window count matching the RTL perf counter, so it includes recordless traffic (page-table walk, accel, cache maintenance) and, with the FE-stall toggle on, fe-wait-spanning cycles. The figure in parentheses, when shown, is the subset caused by the listed instructions (records with a primary miss), smaller than the window count on a small range. The load, store, and recordless split is in the config panel.">DC✗<sup
+          style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>:
         <span class="hi" id="s-dcm">-</span></span>
-      <span title="ICache accesses (cycles where the front-end issued a fetch request).">I$
-        acc: <span class="hi" id="s-ica">-</span></span>
       <span
-        title="DCache accesses: cycles where any of the load, page-table-walk, or store ports raised a data request (the hardware access-cycle count). The figure in parentheses is the load plus store record total, which is smaller because the cycle count also includes page-table-walk reads, miss retries, and atomic sub-accesses.">D$
-        acc: <span class="hi" id="s-dca">-</span></span>
-      <span title="Control flow instructions resolved in the visible window, committed and flushed alike. The number in parentheses, when shown, is the non-speculative subset (committed only).">Branches: <span class="hi"
-          id="s-br">-</span></span>
+        title="ICache accesses: cycles in the visible fetch-range window where the front-end raised a fetch request (the hardware access-cycle count, mhpmevent 16). It counts cycles, not instructions, and includes speculative fetches, miss retries, and, with the FE-stall toggle on, fe-wait cycles the window spans, so on a small range it reads higher than the instruction count.">I$
+        acc<sup style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
+          id="s-ica">-</span></span>
+      <span
+        title="DCache accesses: cycles in the visible fetch-range window where any of the load, page-table-walk, or store ports raised a data request (the hardware access-cycle count, mhpmevent 17). The figure in parentheses is the load plus store record total, which is smaller because the cycle count also includes page-table-walk reads, miss retries, atomic sub-accesses, and, with the FE-stall toggle on, fe-wait-spanning cycles.">D$
+        acc<sup style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
+          id="s-dca">-</span></span>
+      <span
+        title="Control flow instructions resolved in the visible window, committed and flushed alike. The number in parentheses, when shown, is the non-speculative subset (committed only).">Branches:
+        <span class="hi" id="s-br">-</span></span>
       <span
         title="Branches the predictor got wrong (had a specific guess at IF2 and Execute resolved differently). Excludes the unpredicted case below.">Mispred:
         <span class="hi" id="s-misp">-</span></span>
@@ -1034,7 +1112,9 @@
       <span
         title="Total stall cycles: the deduplicated union of the four categories to the left, as a percentage of the window's cycles. A cycle stalled for more than one reason at once counts once.">Stall:
         <span class="hi" id="s-stall">-</span></span>
-      <span style="margin-left:auto" title="Fetch numbers of the rows on screen, over the fetch number of the last instruction in this window.">Visible: <span class="hi" id="s-vis">-</span>
+      <span style="margin-left:auto"
+        title="Fetch numbers of the rows on screen, over the fetch number of the last instruction in this window.">Visible:
+        <span class="hi" id="s-vis">-</span>
         / <span class="hi" id="s-tot">-</span></span>
     </div>
   </div>
@@ -1201,7 +1281,7 @@
       let inInstr = false, arrDepth = 0, commas = 0, sawAny = false;
       let bytesDone = 0; const totalBytes = file.size || 0;
       const isWs = ch => ch === ' ' || ch === '\n' || ch === '\t' || ch === '\r';
-      for (;;) {
+      for (; ;) {
         const { done, value } = await reader.read();
         if (done) break;
         bytesDone += value.byteLength;
@@ -1243,7 +1323,7 @@
             depth--;
             if (inInstr && depth < arrDepth) {
               if (onProgress) onProgress(1);
-              try { await reader.cancel(); } catch (e) {}
+              try { await reader.cancel(); } catch (e) { }
               return commas + (sawAny ? 1 : 0);
             }
             continue;
@@ -1335,7 +1415,7 @@
         st = S_AFTER;
       }
 
-      for (;;) {
+      for (; ;) {
         const { done, value } = await reader.read();
         if (done) break;
         bytesDone += value.byteLength;
@@ -1433,7 +1513,7 @@
               if (ch === '"') { inStr = true; buf += ch; break; }
               if (ch === '{' || ch === '[') { depth++; buf += ch; break; }
               if (ch === '}' || ch === ']') {
-                depth--; 
+                depth--;
                 if (ch === ']' && depth === 1) {
                   /* Array closed. The buffer holds the final element. */
                   if (buf.trim()) acceptElement(key, buf.trim());
@@ -1613,10 +1693,10 @@
       const overBytes = f.size > maxBytes;
       const opening = overBytes
         ? `<p><b>"${escapeHtml(f.name)}"</b> is ${(f.size / (1024 * 1024 * 1024)).toFixed(2)} GB, ` +
-          `past the ${(maxBytes / (1024 * 1024)).toFixed(0)} MB whole-file limit (a browser cannot ` +
-          `hold a file this size as one string).</p>`
+        `past the ${(maxBytes / (1024 * 1024)).toFixed(0)} MB whole-file limit (a browser cannot ` +
+        `hold a file this size as one string).</p>`
         : `<p><b>"${escapeHtml(f.name)}"</b> has more instructions than the viewer renders at ` +
-          `once (the limit is ${MAX_STREAM_INSTRUCTIONS.toLocaleString()}).</p>`;
+        `once (the limit is ${MAX_STREAM_INSTRUCTIONS.toLocaleString()}).</p>`;
       /* The count has finished by the time this prompt is shown (it is opened
        * from the size check for a long trace, or with the total already known
        * for an over-cap in-memory file), so the boxes are live immediately and
@@ -2716,7 +2796,7 @@
        * than the row striping, so the boundary between the last row and the
        * empty space still reads. */
       const lblFirst = Math.max(0, firstRow - 3);
-      const lblLast  = Math.min(ROWS.length - 1, lastRow + 3);
+      const lblLast = Math.min(ROWS.length - 1, lastRow + 3);
       let maxIdDigits = 1;
       for (let r = lblFirst; r <= lblLast; r++) {
         const d = String(dispId(ROWS[r].id)).length;
@@ -2731,18 +2811,18 @@
         let html = '';
         for (let r = lblFirst; r <= lblLast; r++) {
           const ins = ROWS[r];
-          const bg  = (r === PCF.highlightRow && !LBL_PANEL_HIDDEN) ? '#1b3a4a'
+          const bg = (r === PCF.highlightRow && !LBL_PANEL_HIDDEN) ? '#1b3a4a'
             : (r % 2 === 0) ? '#1e1e21' : '#1c1c1e';
           const mnemColor = ins.flushed ? '#804040' : fuTextColor(ins);
           let marks = '';
           if (ins.is_compressed) marks += '<span style="color:#3ec0b0">\u25aa</span>';
-          if (ins.wraps_line)    marks += '<span style="color:#f0a030">\u21aa</span>';
+          if (ins.wraps_line) marks += '<span style="color:#f0a030">\u21aa</span>';
           html += `<div class="lblrow" data-row="${r}" style="top:${r * rh}px;height:${rh}px;background:${bg}">`
-                + `<span class="seq" style="min-width:${maxIdDigits}ch">${dispId(ins.id)}</span>`
-                + `<span class="pc">${escapeHtml(ins.pc || '')}</span>`
-                + (marks ? `<span class="mk">${marks}</span>` : '')
-                + `<span class="mnem" style="color:${mnemColor}">${escapeHtml(dispMnem(ins))}</span>`
-                + `</div>`;
+            + `<span class="seq" style="min-width:${maxIdDigits}ch">${dispId(ins.id)}</span>`
+            + `<span class="pc">${escapeHtml(ins.pc || '')}</span>`
+            + (marks ? `<span class="mk">${marks}</span>` : '')
+            + `<span class="mnem" style="color:${mnemColor}">${escapeHtml(dispMnem(ins))}</span>`
+            + `</div>`;
         }
         lbllist.innerHTML = html;
       }
@@ -3204,7 +3284,7 @@
         /* Anchor low-zoom grid lines to cMin (display cycle 1), matching the
            * ruler ticks and the high-zoom (c - cMin) grid, so the columns
            * stay aligned at low zoom. */
-          const cStart = cMin + Math.ceil((firstCyc - cMin) / cycStep) * cycStep;
+        const cStart = cMin + Math.ceil((firstCyc - cMin) / cycStep) * cycStep;
         for (let c = cStart; c <= lastCyc; c += cycStep) {
           const x = (c - firstCyc) * cellW;
           ctx.fillStyle = 'rgba(255,255,255,.05)';
@@ -3579,9 +3659,9 @@
         if (r.fwd_rs2_producer_id != null) consumedIds.add(r.fwd_rs2_producer_id);
         if (r.fwd_rs3_producer_id != null) consumedIds.add(r.fwd_rs3_producer_id);
       }
-      const flushStall   = new Set();
-      const fetchStall   = new Set();
-      const dataStall    = new Set();
+      const flushStall = new Set();
+      const fetchStall = new Set();
+      const dataStall = new Set();
       const dataMemStall = new Set();
       const addRange = (set, start, endExcl) => {
         const a = Math.max(start, lo);
@@ -3691,9 +3771,9 @@
         }
       }
       const totalStall = new Set();
-      for (const c of flushStall)   totalStall.add(c);
-      for (const c of fetchStall)   totalStall.add(c);
-      for (const c of dataStall)    totalStall.add(c);
+      for (const c of flushStall) totalStall.add(c);
+      for (const c of fetchStall) totalStall.add(c);
+      for (const c of dataStall) totalStall.add(c);
       for (const c of dataMemStall) totalStall.add(c);
       return { flushStall, fetchStall, dataStall, dataMemStall, totalStall };
     }
@@ -3773,6 +3853,23 @@
        * these arrays fall back to per-record counts. */
       let ic;
       let icEventsInRange = 0;   // total accesses, derived from cache FSM when available
+      /* Record-attributed distinct icache misses in the visible range, keyed by
+       * fetch CYCLE so an RVC pair or a wraps_line hi line that shares a fetch
+       * counts once (CVA6 has a single fetch port). This is the subset of the
+       * FSM window miss count caused by the listed instructions, shown in
+       * parentheses next to that window count. In the fallback path (no event
+       * array) it also serves as the headline. */
+      const icRecSet = new Set();
+      for (const r of ROWS) {
+        if (r.ic_miss && r.if1_lo != null) icRecSet.add(r.if1_lo);
+        if (r.wraps_line && r.if1_hi != null) {
+          const hiMiss = (r.ic_miss_hi !== undefined && r.ic_miss_hi !== null)
+            ? r.ic_miss_hi
+            : (r.if2_hi != null && r.if2_hi - r.if1_hi > 1);
+          if (hiMiss) icRecSet.add(r.if1_hi);
+        }
+      }
+      const icRec = icRecSet.size;
       if (IC_EVENTS.length) {
         let m = 0;
         for (const ev of IC_EVENTS) {
@@ -3782,26 +3879,11 @@
         }
         ic = m;
       } else {
-        /* No event array (older JSON). Approximate the miss count from the
-         * per-record ic_miss / ic_miss_hi flags. The key is the fetch CYCLE,
-         * not a lo/hi-tagged cycle: a wraps_line instruction's hi line is the
-         * lo line of a later instruction and is fetched in the same cycle, and
-         * CVA6 has a single fetch port, so a lo miss and a hi miss at the same
-         * cycle are the same cache miss and must count once. Tagging them
-         * separately double-counted wraps_line traffic (a large overcount on
-         * fetch-heavy workloads). For an exact figure, regenerate the JSON with
-         * the current tracer, which emits the icache_events array used above. */
-        const icSet = new Set();
-        for (const r of ROWS) {
-          if (r.ic_miss && r.if1_lo != null) icSet.add(r.if1_lo);
-          if (r.wraps_line && r.if1_hi != null) {
-            const hiMiss = (r.ic_miss_hi !== undefined && r.ic_miss_hi !== null)
-              ? r.ic_miss_hi
-              : (r.if2_hi != null && r.if2_hi - r.if1_hi > 1);
-            if (hiMiss) icSet.add(r.if1_hi);
-          }
-        }
-        ic = icSet.size;
+        /* No event array (older JSON). The record-attributed count above is the
+         * best available figure, so it becomes the headline. For an exact FSM
+         * figure, regenerate the JSON with the current tracer, which emits the
+         * icache_events array used above. */
+        ic = icRec;
       }
       /* DCache miss EVENTS in the visible window. When the JSON has the
        * top-level dcache_alloc_events array, count non-prefetch allocs
@@ -3825,6 +3907,14 @@
         dcSt = ROWS.filter(r => r.fu === 'STORE' && r.dc_primary_miss).length;
       }
       const dcAllMisses = dcLd + dcSt + dcOther;
+      /* Record-attributed DCache primary misses in the visible range: LOAD and
+       * STORE records whose own miss handler allocation fell in their LSU
+       * window (dc_primary_miss), split by kind. Coalesced and recordless
+       * misses are excluded, so this is the subset of the window miss count
+       * caused by the listed instructions, shown in parentheses next to it. */
+      const dcRecLd = ROWS.filter(r => r.fu === 'LOAD' && r.dc_primary_miss).length;
+      const dcRecSt = ROWS.filter(r => r.fu === 'STORE' && r.dc_primary_miss).length;
+      const dcRec = dcRecLd + dcRecSt;
       /* Stall cycles by cause (five categories). Replaces the old single
        * executing-set stall with the cause-based classification shared by
        * the metric bar, the tooltip, and the stalls highlight. A cycle
@@ -3833,9 +3923,9 @@
       const stalls = classifyStallCycles(ROWS, cMin, cMax);
       const stallFlush = stalls.flushStall.size;
       const stallFetch = stalls.fetchStall.size;
-      const stallData  = stalls.dataStall.size;
-      const stallDMem  = stalls.dataMemStall.size;
-      const stall      = stalls.totalStall.size;
+      const stallData = stalls.dataStall.size;
+      const stallDMem = stalls.dataMemStall.size;
+      const stall = stalls.totalStall.size;
       /* ICache and DCache access counts. Three tiers of accuracy:
        *   1. ic_access_cycles / dc_access_cycles (exact, from the trace)
        *      Entries in [cMin, cMax] give the access counts.
@@ -3912,13 +4002,16 @@
       document.getElementById('s-stall-data').textContent = stallData.toLocaleString();
       document.getElementById('s-stall-dmem').textContent = stallDMem.toLocaleString();
       document.getElementById('s-stall').textContent = `${stall.toLocaleString()} (${stallPctStr(stall, cycles)}%)`;
-      document.getElementById('s-icm').textContent = ic.toLocaleString();
+      document.getElementById('s-icm').textContent = (IC_EVENTS.length && icRec !== ic)
+        ? `${ic.toLocaleString()} (${icRec.toLocaleString()} from records)`
+        : ic.toLocaleString();
       /* DC miss display: show total across all sources, with per-adapter
        * breakdown. The "other" bucket is non-zero when page-table-walk,
        * accel, or cache-maintenance misses fell in the window. */
       if (DC_ALLOCS.length) {
-        document.getElementById('s-dcm').textContent =
-          `${dcAllMisses.toLocaleString()} (${dcLd.toLocaleString()} ld, ${dcSt.toLocaleString()} st${dcOther ? `, ${dcOther.toLocaleString()} other` : ''})`;
+        document.getElementById('s-dcm').textContent = (dcRec !== dcAllMisses)
+          ? `${dcAllMisses.toLocaleString()} (${dcRecLd.toLocaleString()} ld, ${dcRecSt.toLocaleString()} st from records)`
+          : dcAllMisses.toLocaleString();
       } else {
         document.getElementById('s-dcm').textContent =
           `${(dcLd + dcSt).toLocaleString()} (${dcLd.toLocaleString()} ld, ${dcSt.toLocaleString()} st)`;
@@ -3990,8 +4083,8 @@
       const stallsAll = classifyStallCycles(DATA.instructions, traceMin, traceMax);
       const stallFlushAll = stallsAll.flushStall.size;
       const stallFetchAll = stallsAll.fetchStall.size;
-      const stallDataAll  = stallsAll.dataStall.size;
-      const stallDMemAll  = stallsAll.dataMemStall.size;
+      const stallDataAll = stallsAll.dataStall.size;
+      const stallDMemAll = stallsAll.dataMemStall.size;
       const stallCycAll = stallsAll.totalStall.size;
       const stallPctAll = stallPctStr(stallCycAll, traceSpan);
       /* Full-trace instruction and access counts for the Simulation panel,
@@ -4032,17 +4125,17 @@
       const icAccFull = IC_ACC_CYCLES.length
         ? IC_ACC_CYCLES.filter(c => c >= traceMin && c <= traceMax).length
         : (IC_EVENTS.length
-            ? IC_EVENTS.filter(e => e.fe2 != null && e.fe2 >= traceMin && e.fe2 <= traceMax).length
-            : (function () {
-                const fc = new Set();
-                for (const r of DATA.instructions) {
-                  if (r.if1_lo != null) fc.add(r.if1_lo);
-                  if (r.wraps_line && r.if1_hi != null) fc.add(r.if1_hi);
-                }
-                let n = 0;
-                for (const c of fc) if (c >= traceMin && c <= traceMax) n++;
-                return n;
-              })());
+          ? IC_EVENTS.filter(e => e.fe2 != null && e.fe2 >= traceMin && e.fe2 <= traceMax).length
+          : (function () {
+            const fc = new Set();
+            for (const r of DATA.instructions) {
+              if (r.if1_lo != null) fc.add(r.if1_lo);
+              if (r.wraps_line && r.if1_hi != null) fc.add(r.if1_hi);
+            }
+            let n = 0;
+            for (const c of fc) if (c >= traceMin && c <= traceMax) n++;
+            return n;
+          })());
       const dcAccFull = DC_ACC_CYCLES.length
         ? DC_ACC_CYCLES.filter(c => c >= traceMin && c <= traceMax).length
         : (nLoadsFull + nStoresFull);
@@ -5233,9 +5326,9 @@
       const bubMaxNote = waitMax.bubble > 0 ? ` <span style="color:#505050">(max ${waitMax.bubble})</span>` : '';
       const bubbleStallRow = sufBubCyc > 0
         ? `<tr><td>${sufBubSerial ? 'Serialize bubble' : 'Redirect bubble'}</td>`
-          + `<td><span style="color:${legibleOnDark(sufBubMeta.swatch)}">${sufBubCyc}c</span>`
-          + ` ${sufBubMeta.txt}`
-          + ` <span style="color:#505050">\u00b7 from #${dispId(r.bubble_from_branch_id)}</span>${bubMaxNote}</td></tr>`
+        + `<td><span style="color:${legibleOnDark(sufBubMeta.swatch)}">${sufBubCyc}c</span>`
+        + ` ${sufBubMeta.txt}`
+        + ` <span style="color:#505050">\u00b7 from #${dispId(r.bubble_from_branch_id)}</span>${bubMaxNote}</td></tr>`
         : '';
       const stallRows =
         preFetchRow
@@ -5284,8 +5377,10 @@
          * like MinorFlow. Branch is a conditional branch, Jump a direct jump,
          * JumpR an indirect (register) jump, Return a subroutine return. */
         if (r.bp_resolved_cf) {
-          const typeLabel = { Branch: 'Conditional branch', Jump: 'Direct jump',
-            JumpR: 'Indirect jump', Return: 'Return', NoCF: 'No control flow' }[r.bp_resolved_cf]
+          const typeLabel = {
+            Branch: 'Conditional branch', Jump: 'Direct jump',
+            JumpR: 'Indirect jump', Return: 'Return', NoCF: 'No control flow'
+          }[r.bp_resolved_cf]
             || r.bp_resolved_cf;
           html += `<tr><td>Type</td><td>${escapeHtml(typeLabel)}</td></tr>`;
         }
