@@ -1071,19 +1071,19 @@
       <span title="Instructions whose fetch spanned two cache lines (wraps line) in this window.">Wrap: <span class="hi"
           id="s-wrp">-</span></span>
       <span
-        title="ICache miss events (from the ICache FSM) whose cycle lies in the visible fetch-range window. A window count over cycles, matching the RTL perf counter, so it includes speculative and page-table-walk fetches and, with the FE-stall toggle on, any fe-wait cycles the window spans. The figure in parentheses, when shown, is the subset caused by the listed instructions (per-record misses deduped by fetch cycle so a shared fetch counts once), which on a small range is smaller than the window count.">IC✗<sup
+        title="ICache miss events in the visible window, matching the RTL perf counter. The number in parentheses, when shown, is the subset from the listed instructions.">IC✗<sup
           style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
           id="s-icm">-</span></span>
       <span
-        title="DCache miss events (non-prefetch) whose cycle lies in the visible fetch-range window. A window count matching the RTL perf counter, so it includes recordless traffic (page-table walk, accel, cache maintenance) and, with the FE-stall toggle on, fe-wait-spanning cycles. The figure in parentheses, when shown, is the subset caused by the listed instructions (records with a primary miss), smaller than the window count on a small range. The load, store, and recordless split is in the config panel.">DC✗<sup
+        title="DCache miss events in the visible window, non-prefetch, matching the RTL perf counter. The number in parentheses is the load, store, and other adapter split, which sums to the total.">DC✗<sup
           style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>:
         <span class="hi" id="s-dcm">-</span></span>
       <span
-        title="ICache accesses: cycles in the visible fetch-range window where the front-end raised a fetch request (the hardware access-cycle count, mhpmevent 16). It counts cycles, not instructions, and includes speculative fetches, miss retries, and, with the FE-stall toggle on, fe-wait cycles the window spans, so on a small range it reads higher than the instruction count.">I$
+        title="ICache access cycles in the visible window where the front-end raised a fetch request (mhpmevent 16).">I$
         acc<sup style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
           id="s-ica">-</span></span>
       <span
-        title="DCache accesses: cycles in the visible fetch-range window where any of the load, page-table-walk, or store ports raised a data request (the hardware access-cycle count, mhpmevent 17). The figure in parentheses is the load plus store record total, which is smaller because the cycle count also includes page-table-walk reads, miss retries, atomic sub-accesses, and, with the FE-stall toggle on, fe-wait-spanning cycles.">D$
+        title="DCache access cycles in the visible window where a load, page-table-walk, or store port raised a data request (mhpmevent 17). The number in parentheses is the load plus store record total.">D$
         acc<sup style="font-size:.7em;opacity:.55" title="cycle-window scoped">cyc</sup>: <span class="hi"
           id="s-dca">-</span></span>
       <span
@@ -1215,7 +1215,7 @@
     function getRowH() { return cellW >= 40 ? 26 : cellW >= 20 ? 20 : 15; }
 
     let DATA = null, ROWS = [], WBS = [], VISIBLE_WBS = [];
-    let DC_ALLOCS = [], IC_EVENTS = [], IC_ACC_CYCLES = [], DC_ACC_CYCLES = [];
+    let DC_ALLOCS = [], IC_EVENTS = [], IC_ACC_CYCLES = [], DC_ACC_CYCLES = [], IC_MISS_CYCLES = [];
     let ROW_BY_ID = new Map();
     let ROW_INDEX_BY_ID = new Map();
     let cMin = 0, cMax = 0;
@@ -1868,6 +1868,11 @@
        * [cMin, cMax] in fillStatus to give the access counts. */
       IC_ACC_CYCLES = Array.isArray(json.ic_access_cycles) ? json.ic_access_cycles : [];
       DC_ACC_CYCLES = Array.isArray(json.dc_access_cycles) ? json.dc_access_cycles : [];
+      /* Phase 4b (RTL-counter match): cycles the icache asserted miss_o, one
+       * per cacheable line fill accepted, which is exactly the hardware L1 I$
+       * miss counter (perf_counters.sv event 1). Filtered to the window like
+       * the access-cycle lists. Absent on JSONs from an older tracer. */
+      IC_MISS_CYCLES = Array.isArray(json.icache_miss_cycles) ? json.icache_miss_cycles : [];
       const base = name.replace(/\.json$/i, '');
       const shown = base.length > 30 ? base.slice(0, 14) + '…' + base.slice(-14) : base;
       const tn = document.getElementById('tracename');
@@ -3030,11 +3035,19 @@
       }
       if (ins.fu === 'CTRL_FLOW' && ins.bp_mispredict && ins.ex_cycle != null) {
         const taken = ins.bp_resolved_taken === false ? 'N' : 'T';
-        /* Mispredict cap on the EX cell. The EX cell is rendered with
-         * hFrac = H_EXEC = 0.85, so its top sits at y = h * 0.15. The
-         * strip height matches that to be flush with the cell. */
+        /* Cap on the EX cell for a branch that needed an Execute redirect.
+         * The EX cell is rendered with hFrac = H_EXEC = 0.85, so its top
+         * sits at y = h * 0.15. The strip height matches that to be flush
+         * with the cell. Two outcomes share this cell, told apart by whether
+         * the predictor had a verdict, the same split the Mispred and Unpred
+         * metrics use: a mispredict (the predictor fired but called the wrong
+         * direction or target) caps red with a T✗/N✗ glyph, an
+         * unpredicted branch (predicted_cf == NoCF, the predictor stayed
+         * silent and the default not-taken was wrong) caps orange with a
+         * T!/N! glyph. This matches the two outcome colours MinorFlow draws. */
         const psH = Math.max(6, Math.round(h * 0.15));
-        strip(ins.ex_cycle, ins.ex_cycle + 1, sc('#ff4040'), 0, psH, taken + '✗');
+        const silent = ins.bp_predicted_cf === 'NoCF';
+        strip(ins.ex_cycle, ins.ex_cycle + 1, sc(silent ? '#f0a030' : '#ff4040'), 0, psH, taken + (silent ? '!' : '✗'));
       } else if (ins.fu === 'CTRL_FLOW' && ins.bp_predicted_cf
         && ins.bp_predicted_cf !== 'NoCF' && ins.if2_lo != null) {
         const taken = ins.bp_resolved_taken === false ? 'N' : 'T';
@@ -3470,7 +3483,11 @@
       },
       {
         key: 'misp', label: 'Mispredict (T✗/N✗)', color: '#ff4040',
-        desc: 'Red cap on the EX cell of a control flow instruction. The predictor was wrong and execute had to redirect. T means resolved taken, N means resolved not taken.'
+        desc: 'Red cap on the EX cell of a control flow instruction. The predictor fired but called the wrong direction or target, so execute had to redirect. T means resolved taken, N means resolved not taken.'
+      },
+      {
+        key: 'unprcap', label: 'Unpredicted (T!/N!)', color: '#f0a030',
+        desc: 'Orange cap on the EX cell of a control flow instruction. The predictor stayed silent (predicted_cf == NoCF) and the default not-taken was wrong, so execute had to redirect. T means resolved taken, N means resolved not taken.'
       },
       /* LSU strip extends EX for loads and stores */
       {
@@ -3566,7 +3583,7 @@
           && r.wb_cycle > r.ex_cycle + 1) present.add('dcstall');
         if (r.wb_cycle != null && r.co_cycle != null && r.co_cycle > r.wb_cycle) present.add('cowait');
         if (r.co_cycle != null) present.add('co');
-        if (r.bp_mispredict) present.add('misp');
+        if (r.bp_mispredict) present.add(r.bp_predicted_cf === 'NoCF' ? 'unprcap' : 'misp');
         else if (r.fu === 'CTRL_FLOW' && r.bp_predicted_cf && r.bp_predicted_cf !== 'NoCF') present.add('pred');
         /* Forwarding swatches only when the Forwarding toggle is on, since the
          * arrows are not drawn otherwise and the legend would name something
@@ -3870,19 +3887,43 @@
         }
       }
       const icRec = icRecSet.size;
+      /* At the full window (no fetch-range filter, so ROWS is every loaded
+       * instruction) the cache metrics count every loaded event, including
+       * wind-down fetches whose delivery lands after the last committed cycle,
+       * so miss and access totals equal the tracer perf counters, which count
+       * the whole run. A fetch-range filter re-imposes [cMin, cMax] so a zoom
+       * still narrows to the selected instructions. The config panel counts
+       * every loaded event the same way, so the two stay in agreement. */
+      const fullWindow = !!(DATA && DATA.instructions && ROWS.length === DATA.instructions.length);
+      /* Delivery-based miss count from icache_events (one event per non-killed
+       * fetch delivery). Kept for the access count and the config-panel
+       * hit/miss split. It omits wrong-path fetches squashed mid-fill, so it
+       * is a lower bound on the hardware counter. */
+      let icDeliv = 0;
       if (IC_EVENTS.length) {
-        let m = 0;
         for (const ev of IC_EVENTS) {
-          if (ev.fe2 == null || ev.fe2 < cMin || ev.fe2 > cMax) continue;
+          if (!fullWindow && (ev.fe2 == null || ev.fe2 < cMin || ev.fe2 > cMax)) continue;
           icEventsInRange++;
-          if (ev.miss) m++;
+          if (ev.miss) icDeliv++;
         }
+      }
+      if (IC_MISS_CYCLES.length) {
+        /* Preferred headline: the RTL L1 I$ miss counter. icache_miss_cycles
+         * holds every cycle the icache asserted miss_o (one per cacheable line
+         * fill accepted), exactly perf_counters.sv event 1, so it includes the
+         * wrong-path fills squashed before delivery that icache_events omit.
+         * Windowed like the access-cycle lists. */
+        let m = 0;
+        for (const c of IC_MISS_CYCLES) if (fullWindow || (c >= cMin && c <= cMax)) m++;
         ic = m;
+      } else if (IC_EVENTS.length) {
+        /* No miss-cycle list (JSON from an older tracer). Fall back to the
+         * delivery-based count, which undercounts squashed wrong-path fills.
+         * Regenerate with the current tracer for the exact hardware counter. */
+        ic = icDeliv;
       } else {
-        /* No event array (older JSON). The record-attributed count above is the
-         * best available figure, so it becomes the headline. For an exact FSM
-         * figure, regenerate the JSON with the current tracer, which emits the
-         * icache_events array used above. */
+        /* No event array either. The record-attributed count is the best
+         * available figure. Regenerate for the signal-derived count. */
         ic = icRec;
       }
       /* DCache miss EVENTS in the visible window. When the JSON has the
@@ -3897,7 +3938,7 @@
       if (DC_ALLOCS.length) {
         for (const ev of DC_ALLOCS) {
           if (ev.pf === 1) continue;
-          if (ev.cycle == null || ev.cycle < cMin || ev.cycle > cMax) continue;
+          if (!fullWindow && (ev.cycle == null || ev.cycle < cMin || ev.cycle > cMax)) continue;
           if (ev.sid === 1) dcLd++;     // LOAD adapter
           else if (ev.sid === 3) dcSt++;     // STORE adapter
           else dcOther++;  // PTW (0), accel (2), CMO, HWPF-non-pf, unknown
@@ -3907,14 +3948,6 @@
         dcSt = ROWS.filter(r => r.fu === 'STORE' && r.dc_primary_miss).length;
       }
       const dcAllMisses = dcLd + dcSt + dcOther;
-      /* Record-attributed DCache primary misses in the visible range: LOAD and
-       * STORE records whose own miss handler allocation fell in their LSU
-       * window (dc_primary_miss), split by kind. Coalesced and recordless
-       * misses are excluded, so this is the subset of the window miss count
-       * caused by the listed instructions, shown in parentheses next to it. */
-      const dcRecLd = ROWS.filter(r => r.fu === 'LOAD' && r.dc_primary_miss).length;
-      const dcRecSt = ROWS.filter(r => r.fu === 'STORE' && r.dc_primary_miss).length;
-      const dcRec = dcRecLd + dcRecSt;
       /* Stall cycles by cause (five categories). Replaces the old single
        * executing-set stall with the cause-based classification shared by
        * the metric bar, the tooltip, and the stalls highlight. A cycle
@@ -3937,7 +3970,7 @@
       let icAcc;
       if (IC_ACC_CYCLES.length) {
         let count = 0;
-        for (const c of IC_ACC_CYCLES) if (c >= cMin && c <= cMax) count++;
+        for (const c of IC_ACC_CYCLES) if (fullWindow || (c >= cMin && c <= cMax)) count++;
         icAcc = count;
       } else if (IC_EVENTS.length) {
         icAcc = icEventsInRange;
@@ -3961,7 +3994,7 @@
       let dcAcc;
       if (DC_ACC_CYCLES.length) {
         let count = 0;
-        for (const c of DC_ACC_CYCLES) if (c >= cMin && c <= cMax) count++;
+        for (const c of DC_ACC_CYCLES) if (fullWindow || (c >= cMin && c <= cMax)) count++;
         dcAcc = count;
       } else {
         dcAcc = nLoads + nStores;
@@ -4002,16 +4035,15 @@
       document.getElementById('s-stall-data').textContent = stallData.toLocaleString();
       document.getElementById('s-stall-dmem').textContent = stallDMem.toLocaleString();
       document.getElementById('s-stall').textContent = `${stall.toLocaleString()} (${stallPctStr(stall, cycles)}%)`;
-      document.getElementById('s-icm').textContent = (IC_EVENTS.length && icRec !== ic)
+      document.getElementById('s-icm').textContent = (IC_EVENTS.length && icRec < ic)
         ? `${ic.toLocaleString()} (${icRec.toLocaleString()} from records)`
         : ic.toLocaleString();
       /* DC miss display: show total across all sources, with per-adapter
        * breakdown. The "other" bucket is non-zero when page-table-walk,
        * accel, or cache-maintenance misses fell in the window. */
       if (DC_ALLOCS.length) {
-        document.getElementById('s-dcm').textContent = (dcRec !== dcAllMisses)
-          ? `${dcAllMisses.toLocaleString()} (${dcRecLd.toLocaleString()} ld, ${dcRecSt.toLocaleString()} st from records)`
-          : dcAllMisses.toLocaleString();
+        document.getElementById('s-dcm').textContent =
+          `${dcAllMisses.toLocaleString()} (${dcLd.toLocaleString()} ld, ${dcSt.toLocaleString()} st${dcOther ? `, ${dcOther.toLocaleString()} other` : ''})`;
       } else {
         document.getElementById('s-dcm').textContent =
           `${(dcLd + dcSt).toLocaleString()} (${dcLd.toLocaleString()} ld, ${dcSt.toLocaleString()} st)`;
@@ -4123,9 +4155,9 @@
       const nLoadsFull = DATA.instructions.filter(r => r.fu === 'LOAD').length;
       const nStoresFull = DATA.instructions.filter(r => r.fu === 'STORE').length;
       const icAccFull = IC_ACC_CYCLES.length
-        ? IC_ACC_CYCLES.filter(c => c >= traceMin && c <= traceMax).length
+        ? IC_ACC_CYCLES.length
         : (IC_EVENTS.length
-          ? IC_EVENTS.filter(e => e.fe2 != null && e.fe2 >= traceMin && e.fe2 <= traceMax).length
+          ? IC_EVENTS.filter(e => e.fe2 != null).length
           : (function () {
             const fc = new Set();
             for (const r of DATA.instructions) {
@@ -4137,7 +4169,7 @@
             return n;
           })());
       const dcAccFull = DC_ACC_CYCLES.length
-        ? DC_ACC_CYCLES.filter(c => c >= traceMin && c <= traceMax).length
+        ? DC_ACC_CYCLES.length
         : (nLoadsFull + nStoresFull);
       const accNote = (IC_ACC_CYCLES.length || DC_ACC_CYCLES.length)
         ? '' : ' (record-derived)';
@@ -4301,17 +4333,17 @@
       }
 
       if (IC_EVENTS.length || st.icache_event_count != null) {
-        /* Access and miss figures come from the loaded IC_EVENTS array scoped
-         * to the trace window (or icAccFull for the access-cycle count), so
+        /* Access and miss figures come from the loaded IC_EVENTS array, counting
+         * every loaded event (or icAccFull for the access-cycle count), so
          * they equal the status bar and stay correct for a shortened load,
          * rather than the tracer's whole-run metadata. When the event array is
          * absent (older-parser JSON) the miss count is recomputed from the
          * per-record ic_miss flags, deduped by fetch cycle exactly as the
-         * status bar does, so it too is the loaded-window figure rather than
+         * status bar does, so it too counts every loaded event rather than
          * the whole-run icache_event_misses. wlMiss uses ic_miss_hi when the
          * tracer provides it, falling back to the if2_hi-if1_hi>1 heuristic. */
         const hasIcEvents = IC_EVENTS.length > 0;
-        const inWin = e => e.fe2 != null && e.fe2 >= traceMin && e.fe2 <= traceMax;
+        const inWin = e => e.fe2 != null;
         const icEvCount = hasIcEvents ? IC_EVENTS.filter(inWin).length : 0;
         let icEvMiss;
         if (hasIcEvents) {
@@ -4330,6 +4362,12 @@
           icEvMiss = icSet.size;
         }
         const icEvHits = Math.max(0, icEvCount - icEvMiss);
+        /* Hardware-counter miss figure. When the tracer emitted the
+         * icache_miss_cycles list (miss_o pulses, perf_counters.sv event 1)
+         * use its full-trace length, which includes the wrong-path fills the
+         * delivery events omit. Older JSONs fall back to the delivery miss
+         * count. The status bar headline uses the same figure. */
+        const icMissHw = IC_MISS_CYCLES.length ? IC_MISS_CYCLES.length : icEvMiss;
         const wl = DATA.instructions.filter(r => r.wraps_line).length;
         const wlMiss = DATA.instructions.filter(r => {
           if (!r.wraps_line) return false;
@@ -4365,15 +4403,17 @@
         ];
         if (hasIcEvents) {
           icRows.push(['cache events (hits / misses)', `${icEvHits.toLocaleString()} / ${icEvMiss.toLocaleString()}`,
-            'Fetch requests the cache FSM saw, split into hits and misses. One event per request. A miss can hold the request across several access cycles, so events are fewer than accesses whenever misses occur.']);
+            'Delivered fetches the cache FSM saw (one event per non-killed delivery), split into hits and misses. A miss can hold the request across several access cycles, so events are fewer than accesses whenever misses occur. The miss events row below is the hardware counter, which also counts wrong-path fetches squashed before delivery.']);
         }
         icRows.push(['observed hit latency',
           minHit != null ? `${minHit} cycle${minHit === 1 ? '' : 's'}` : '-',
           'Minimum (if2 minus if1) across hits in this trace.']);
-        icRows.push(['miss events', icEvMiss.toLocaleString(),
-          hasIcEvents
-            ? 'Missing fetch events, the same figure the status bar shows for ICache misses. Counted once per cache access regardless of how many instructions were fetched from the same line.'
-            : 'ICache misses in the loaded trace, recomputed from the per-record miss flags (this JSON has no event array), the same figure the status bar shows. For an exact event-based count, regenerate the JSON with the current tracer.']);
+        icRows.push(['miss events', icMissHw.toLocaleString(),
+          IC_MISS_CYCLES.length
+            ? 'Hardware L1 ICache miss count, from the icache miss_o pulses the RTL perf counter counts (perf_counters.sv event 1), the same figure the status bar shows. This includes wrong-path fetches squashed before delivery, so it can exceed the miss figure in the cache events row above, which counts only delivered fetches.'
+            : (hasIcEvents
+              ? 'Missing fetch events, the same figure the status bar shows for ICache misses. Counted once per cache access regardless of how many instructions were fetched from the same line. This JSON predates the miss_o pulse count, so wrong-path fetches squashed before delivery are not counted. Regenerate with the current tracer to match the RTL counter.'
+              : 'ICache misses in the loaded trace, recomputed from the per-record miss flags (this JSON has no event array), the same figure the status bar shows. For an exact event-based count, regenerate the JSON with the current tracer.')]);
         icRows.push(['wraps_line records',
           `${wl.toLocaleString()} (${wlMiss.toLocaleString()} with hi miss)`,
           'Instructions whose bytes wrap a cache delivery boundary and trigger a second fetch (the hi line).']);
@@ -4394,7 +4434,6 @@
       let dcMissTot = 0, dcMissLd = 0, dcMissSt = 0, dcMissOther = 0;
       for (const ev of DC_ALLOCS) {
         if (ev.pf === 1) continue;
-        if (ev.cycle == null || ev.cycle < traceMin || ev.cycle > traceMax) continue;
         dcMissTot++;
         if (ev.sid === 1) dcMissLd++;
         else if (ev.sid === 3) dcMissSt++;
@@ -4436,49 +4475,65 @@
         sections.push({ title: 'Data cache', rows: dcRows });
       }
 
-      /* Branch prediction, derived from the loaded control-flow records.
-       * Reproduces the tracer's phase7a definitions: a prediction is any
-       * non-NoCF verdict, a resolution is a control-flow record that reached
-       * execute, a mispredict is a wrong non-NoCF verdict (the NoCF fall-
-       * through case is the status bar's separate Unpred count), and accuracy
-       * is (resolutions minus mispredicts) over resolutions. */
+      /* Branch prediction, derived from the loaded control-flow records. A
+       * resolution is a control-flow record that reached execute. Among
+       * resolutions, bp_mispredict marks the ones that needed an Execute
+       * redirect, split by bp_predicted_cf into a mispredict (predictor fired
+       * a non-NoCF verdict and called it wrong) and an unpredicted branch
+       * (predictor stayed silent, NoCF, and the default not-taken was wrong).
+       * The remaining resolutions needed no redirect and are correct. The
+       * three sum to the resolutions, and accuracy is correct over
+       * resolutions, counting an unpredicted redirect as not correct, the
+       * same basis MinorFlow uses. */
       const cfRecs = DATA.instructions.filter(r => r.fu === 'CTRL_FLOW');
       const bpCF = cfRecs.length;
-      const bpPred = cfRecs.filter(r => r.bp_predicted_cf && r.bp_predicted_cf !== 'NoCF').length;
+      const bpCommitted = cfRecs.filter(r => !r.flushed).length;
       const bpResolv = cfRecs.filter(r => r.ex_cycle != null).length;
-      const bpMisp = cfRecs.filter(r => r.bp_mispredict && r.bp_predicted_cf && r.bp_predicted_cf !== 'NoCF').length;
-      const bpHitRate = bpResolv > 0 ? ((bpResolv - bpMisp) / bpResolv * 100) : null;
+      const bpMisp = cfRecs.filter(r => r.ex_cycle != null && r.bp_mispredict && r.bp_predicted_cf !== 'NoCF').length;
+      const bpUnpred = cfRecs.filter(r => r.ex_cycle != null && r.bp_mispredict && r.bp_predicted_cf === 'NoCF').length;
+      const bpCorrect = cfRecs.filter(r => r.ex_cycle != null && !r.bp_mispredict).length;
+      const bpFlushed = bpCF - bpResolv;
+      const bpTaken = cfRecs.filter(r => r.ex_cycle != null && r.bp_resolved_taken === true).length;
+      const bpNotTaken = cfRecs.filter(r => r.ex_cycle != null && r.bp_resolved_taken === false).length;
+      const bpAcc = bpResolv > 0 ? ((bpCorrect / bpResolv) * 100) : null;
 
       const p7a = st.phase7a || {};
       if (bpCF > 0 || Object.keys(p7a).length) {
-        /* Predictor capacity. Pull from cp when the trace exposes the
-         * config constants. Show '-' if unavailable. */
+        /* Predictor capacity from the trace config constants, when present.
+         * Each on its own row so the section stays scannable. */
         const bhtEntries = cp.BHTEntries;
         const btbEntries = cp.BTBEntries;
         const rasDepth = cp.RASDepth;
-        const capParts = [];
-        if (bhtEntries != null) capParts.push(`BHT ${bhtEntries}`);
-        if (btbEntries != null) capParts.push(`BTB ${btbEntries}`);
-        if (rasDepth != null) capParts.push(`RAS ${rasDepth}`);
-        const capDisp = capParts.length ? capParts.join(', ') : '-';
-        sections.push({
-          title: 'Branch prediction', rows: [
-            ['control flow instructions', bpCF.toLocaleString(),
-              'jal, jalr, branches and their compressed variants, committed and flushed alike, in the loaded trace.'],
-            ['predictions fired', bpPred.toLocaleString(),
-              'Control-flow instructions that got a non NoCF prediction.'],
-            ['resolutions observed', bpResolv.toLocaleString(),
-              'Control-flow instructions that reached resolution at execute.'],
-            ['mispredicts', bpMisp.toLocaleString(),
-              'Wrong non-NoCF prediction (direction or target). Execute had to correct. The NoCF fall-through case is the status bar\'s separate Unpred count.'],
-            ['prediction accuracy', (bpHitRate != null ? bpHitRate.toFixed(2) + ' %' : '-'),
-              'Correctly resolved (resolutions minus mispredicts) divided by total resolutions.'],
-            ['predictor capacity', capDisp,
-              'BHT for conditional branch direction. BTB for indirect targets. RAS for return targets. Static fallback predicts taken when the BHT misses on a backward branch (negative immediate).'],
-            ['prediction verdict derivation', 'reconstructed from resolution',
-              'The prediction verdict carried with each control instruction is reconstructed from the resolved control-flow type, the resolved direction, and the mispredict flag. For a conditional branch the predictor guessed taken exactly when the resolved direction and the mispredict flag disagree. This reconstruction is used because a direct capture at issue is unreliable for back-to-back issues, where the value held is the previous instruction\'s bp.cf, not the issuing one\'s.'],
-          ]
-        });
+        const capRows = [];
+        if (bhtEntries != null) capRows.push(['BHT entries', bhtEntries.toLocaleString(), 'Branch history table, conditional branch direction.']);
+        if (btbEntries != null) capRows.push(['BTB entries', btbEntries.toLocaleString(), 'Branch target buffer, indirect and taken targets.']);
+        if (rasDepth != null) capRows.push(['RAS depth', rasDepth.toLocaleString(), 'Return address stack, call and return targets.']);
+        if (capRows.length) {
+          capRows.push(['static fallback', 'taken on backward', 'When the BHT misses, a backward branch (negative immediate) is predicted taken.']);
+          sections.push({ title: 'Branch predictor', rows: capRows });
+        }
+
+        const brRows = [
+          ['total branches', (bpCommitted !== bpCF ? `${bpCF.toLocaleString()} (${bpCommitted.toLocaleString()})` : bpCF.toLocaleString()),
+            'jal, jalr, branches and their compressed variants, committed and speculatively fetched then flushed alike. The number in parentheses, when shown, is the committed subset.'],
+          ['correctly predicted', bpCorrect.toLocaleString(),
+            'Resolved with no Execute redirect. The predictor called it right, or a not-taken branch correctly fell through.'],
+          ['mispredicted', bpMisp.toLocaleString(),
+            'The predictor fired a verdict but called the wrong direction or target, so Execute redirected.'],
+          ['unpredicted', bpUnpred.toLocaleString(),
+            'The predictor stayed silent (predicted_cf == NoCF) and the default not-taken was wrong, so Execute redirected. Common on the first encounter of a control instruction.'],
+        ];
+        if (bpFlushed > 0) brRows.push(['flushed before resolution', bpFlushed.toLocaleString(),
+          'Wrong-path control instructions squashed before they reached execute, so they have no outcome. Correct plus mispredicted plus unpredicted plus this equals total branches.']);
+        brRows.push(
+          ['prediction accuracy', (bpAcc != null ? bpAcc.toFixed(2) + ' %' : '-'),
+            'Correctly predicted over resolved branches (total minus those flushed before resolution), counting an unpredicted redirect as not correct.'],
+          ['taken / not taken', `${bpTaken.toLocaleString()} / ${bpNotTaken.toLocaleString()}`,
+            'Actual resolved direction across resolved branches.'],
+          ['verdict basis', 'reconstructed from resolution',
+            'The predicted verdict is reconstructed for each branch from its resolved type, direction, and mispredict flag, because a direct capture at issue is unreliable for back-to-back issues.'],
+        );
+        sections.push({ title: 'Branch behaviour (observed)', rows: brRows });
       }
 
       /* Memory writebacks, derived from the loaded writebacks array (WBS).
