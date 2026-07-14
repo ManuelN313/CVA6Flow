@@ -1,0 +1,32 @@
+# Files to big to be tracked
+# Testing
+tests/*.vcd*
+tests/*.list*
+tests/bht_alias_test.config1.json
+tests/bht_alias_test_clean.config1.txt
+tests/bht_alias_test.config4.json
+tests/bht_alias_test_clean.config4.txt
+tests/bht_alias_test.config5.json
+tests/bht_alias_test_clean.config5.txt
+tests/bht_alias_test.config6.json
+tests/bht_alias_test_clean.config6.txt
+tests/btb_pressure_test.config1.json
+tests/btb_pressure_test_clean.config1.txt
+tests/commit_ilp_test.config1.json
+tests/commit_ilp_test_clean.config1.txt
+tests/data_cache_stress_test.config1.json
+tests/data_cache_stress_test_clean.config1.txt
+tests/data_cache_stress_test.config3.json
+tests/data_cache_stress_test_clean.config3.txt
+tests/dcache_size_test.config1.json
+tests/dcache_size_test_clean.config1.txt
+tests/dcache_size_test.config2.json
+tests/dcache_size_test_clean.config2.txt
+tests/icache_footprint_test.config1.json
+tests/icache_footprint_test_clean.config1.txt
+tests/icache_footprint_test.config13.json
+tests/icache_footprint_test_clean.config13.txt
+tests/icache_footprint_test.config14.json
+tests/icache_footprint_test_clean.config14.txt
+tests/store_miss_test.config1.json
+tests/store_miss_test_clean.config1.txt
