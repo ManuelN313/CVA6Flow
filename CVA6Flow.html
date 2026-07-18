@@ -1014,9 +1014,12 @@
     ondrop="event.preventDefault(); this.classList.remove('ov'); loadF(event.dataTransfer.files[0])"
     onclick="document.getElementById('fi').click()">
     <h2>Drag a CVA6 trace here, or click to browse</h2>
-    <p style="font-size:11px">JSON produced by <code>cva6_pipeline_tracer.py</code> from a Verilator generated VCD.</p>
+    <p style="font-size:11px">JSON produced by <code>CVA6Flow_tracer.py</code> from a Verilator generated VCD.</p>
     <p style="font-size:10px;margin-top:4px">Keys: + / − to zoom · arrows to navigate · Home/End to jump · Esc to close
       panels</p>
+    <button id="load-sample-btn" onclick="event.stopPropagation(); loadSample()"
+      style="margin-top:18px;padding:8px 18px;font-size:12px;font-weight:600;cursor:pointer;color:#fff;background:#1f6feb;border:0;border-radius:6px">Load
+      sample trace (DAXPY)</button>
   </div>
 
   <div id="view">
@@ -1792,7 +1795,7 @@
                 `<p>${why}</p>` +
                 `<p>The current view has not been changed.</p>` +
                 `<p style="margin-top:14px;color:var(--text3);font-size:11px;line-height:1.5">` +
-                `A CVA6 trace is the JSON produced by <code>cva6_pipeline_tracer.py</code> ` +
+                `A CVA6 trace is the JSON produced by <code>CVA6Flow_tracer.py</code> ` +
                 `running over a Verilator generated VCD. The file should look like:</p>` +
                 `<pre style="background:var(--bg);color:var(--text2);padding:8px 12px;border-radius:4px;` +
                 `font-size:11px;border:0.5px solid var(--border2);overflow-x:auto">` +
@@ -1832,6 +1835,50 @@
       };
       r.readAsText(f);
     }
+    /* Load a bundled sample trace so the demo works with one click, no build
+     * required. Two paths, so it works in both contexts:
+     *   - served (for example GitHub Pages): fetch the JSON directly.
+     *   - opened locally from a file:// URL: browsers block fetch of local
+     *     files, so fall back to a <script> tag, which is not subject to that
+     *     restriction and loads relative to this page's own location. That
+     *     script assigns the same object to window.__SAMPLE_TRACE__.
+     * Both paths resolve relative to where this HTML file sits. */
+    const SAMPLE_URL = 'tests/daxpy.config1.json';
+    const SAMPLE_URL_JS = 'tests/daxpy.config1.js';
+
+    function loadSample() {
+      showLoading('loading sample\u2026');
+      fetch(SAMPLE_URL)
+        .then(resp => { if (!resp.ok) throw new Error('http ' + resp.status); return resp.json(); })
+        .then(finishSample)
+        .catch(() => loadSampleViaScript());
+    }
+
+    function loadSampleViaScript() {
+      const s = document.createElement('script');
+      s.src = SAMPLE_URL_JS;
+      s.onload = () => {
+        const data = window.__SAMPLE_TRACE__;
+        try { delete window.__SAMPLE_TRACE__; } catch (e) { window.__SAMPLE_TRACE__ = undefined; }
+        s.remove();
+        if (!data) { hideLoading(); alert('The sample file loaded but did not set window.__SAMPLE_TRACE__. Check "' + SAMPLE_URL_JS + '".'); return; }
+        finishSample(data);
+      };
+      s.onerror = () => {
+        s.remove();
+        hideLoading();
+        alert('Could not load the sample trace.\n\nLooked for "' + SAMPLE_URL + '" (served) and "' + SAMPLE_URL_JS + '" (local), relative to this page.\n\nMake sure the sample is present next to this file, or drag a trace onto the window instead.');
+      };
+      document.head.appendChild(s);
+    }
+
+    function finishSample(json) {
+      const why = whyNotCVA6Trace(json);
+      if (why) { hideLoading(); alert('The sample trace could not be loaded: ' + why.replace(/<[^>]+>/g, '')); return; }
+      ingest(json, 'DAXPY config1 (sample)');
+      hideLoading();
+    }
+
     function whyNotCVA6Trace(j) {
       if (j == null || typeof j !== 'object') return 'Top level is not a JSON object.';
       if (!Array.isArray(j.instructions)) return 'Missing the <code>instructions</code> array.';
