@@ -30,3 +30,6 @@ tests/icache_footprint_test.config14.json
 tests/icache_footprint_test_clean.config14.txt
 tests/store_miss_test.config1.json
 tests/store_miss_test_clean.config1.txt
+# Outdated Stuff
+/docs/old_versions
+/docs/parser_phases
