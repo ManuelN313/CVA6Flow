@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "CVA6Flow"
+abstract: "A browser-based, cycle-by-cycle pipeline visualiser for the CORE-V CVA6 RISC-V core, reconstructed from Verilator VCD signals."
+type: software
+authors:
+  - family-names: "Nieto"
+    given-names: "Manuel"
+    affiliation: "FaMAF, Universidad Nacional de Córdoba"
+    orcid: "https://orcid.org/0009-0007-3893-5628"
+version: "1.0.0"
+date-released: "2026-07-19"
+license: MIT
+repository-code: "https://github.com/FaMAF-CVA6-Project/CVA6Flow"
+url: "https://github.com/FaMAF-CVA6-Project/CVA6Flow"
+keywords:
+  - RISC-V
+  - CVA6
+  - computer architecture
+  - microarchitecture
+  - pipeline visualisation
+  - Verilator
+  - RTL
