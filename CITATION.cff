@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this software, please cite it as below."
 title: "CVA6Flow"
-abstract: "A browser-based, cycle-by-cycle pipeline visualiser for the CORE-V CVA6 RISC-V core, reconstructed from Verilator VCD signals."
+abstract: "A browser-based, cycle-by-cycle pipeline visualizer for the CORE-V CVA6 RISC-V core, reconstructed from Verilator VCD signals."
 type: software
 authors:
   - family-names: "Nieto"
@@ -18,6 +18,6 @@ keywords:
   - CVA6
   - computer architecture
   - microarchitecture
-  - pipeline visualisation
+  - pipeline visualization
   - Verilator
   - RTL
