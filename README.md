@@ -1,6 +1,6 @@
 # CVA6Flow
 
-A browser-based pipeline visualiser for the CORE-V CVA6 RISC-V core. It reconstructs the pipeline cycle by cycle from a Verilator-generated VCD, straight off the RTL, and draws every in-flight instruction as a row.
+A browser-based pipeline visualizer for the CORE-V CVA6 RISC-V core. It reconstructs the pipeline cycle by cycle from a Verilator-generated VCD, straight off the RTL, and draws every in-flight instruction as a row.
 
 ![CVA6Flow rendering the CVA6 pipeline](docs/CVA6Flow_intro.png)
 
