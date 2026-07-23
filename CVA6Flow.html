@@ -1523,6 +1523,7 @@
      * span clamp, so a small leading digit of a larger number stays typable,
      * and bigRangeCommit does the full clamp on commit. */
     function onBigRangeInput(el) {
+      bigRangeError('');
       const cleaned = el.value.replace(/[^0-9]/g, '');
       if (cleaned !== el.value) el.value = cleaned;
       if (el.value === '') return;
@@ -1555,6 +1556,12 @@
       }
     }
     function onBigRangeChange() { bigRangeCommit(); }
+    /* Write a message into the range prompt's error line. The paragraph exists
+     * only while the prompt is open, so the lookup is guarded. */
+    function bigRangeError(msg) {
+      const el = document.getElementById('bigerr');
+      if (el) el.textContent = msg;
+    }
     /* Streaming loader shared by the range load and the auto-whole load. With
      * whole, the entire trace loads and the name carries no range suffix. */
     async function streamAndIngest(f, fromN, toN, whole) {
@@ -1585,10 +1592,13 @@
       } catch (err) {
         tn.textContent = prevName; tn.title = prevTitle;
         hideLoading();
+        /* toN is the right prefill in both cases. The whole-file caller passes
+         * the record total as toN, so there is no separate total to consult,
+         * and the destructured total above is scoped to the try block. */
         promptRangedLoad(f, _bigMaxBytes,
           `That load was too big for the browser (${escapeHtml(err.message)}). ` +
           `Try a smaller range or cancel.`,
-          '1', String(Math.min(200000, whole ? total : toN)));
+          '1', String(Math.min(200000, toN)));
       } finally {
         hideLoading();
       }
@@ -1848,7 +1858,7 @@
       DC_ACC_CYCLES = Array.isArray(json.dc_access_cycles) ? json.dc_access_cycles : [];
       /* Phase 4b: cycles the icache asserted miss_o, one per cacheable line
        * fill, matching the hardware L1 I$ miss counter (perf_counters.sv
-       * event 1). Absent on JSONs from an older tracer. */
+       * event 1). */
       IC_MISS_CYCLES = Array.isArray(json.icache_miss_cycles) ? json.icache_miss_cycles : [];
       const base = name.replace(/\.json$/i, '');
       const shown = base.length > 30 ? base.slice(0, 14) + '…' + base.slice(-14) : base;
@@ -2185,8 +2195,8 @@
       /* m5op-based detection: assembly programs bracket the workload with jal
        * to gem5's m5_reset_stats / m5_dump_stats, so the ROI runs from the
        * instruction after the reset call to the one before the dump call.
-       * Matched by symbol name permissively, since the disasm format varies
-       * across tracer versions, and workbegin/workend variants are accepted. */
+       * Matched by symbol name permissively, accepting workbegin/workend
+       * variants. */
       const resetCallRe = /\b(?:m5_reset_stats|m5_resetstats|m5_workbegin)\b/;
       const dumpCallRe = /\b(?:m5_dump_stats|m5_dumpstats|m5_dump_reset_stats|m5_workend)\b/;
       let resetIdx = -1, dumpIdx = -1;
@@ -2516,8 +2526,8 @@
       if (!DATA || !ROWS.length) { el.textContent = '-'; return; }
       const rh = getRowH();
       /* Clamp: a narrowing filter can run this via fillStatus before the scroll
-       * is reset, and the stale scrollY then maps past the shorter ROWS, which
-       * used to throw and abort the metric refresh mid-way. */
+       * is reset, and the stale scrollY would otherwise map past the shorter
+       * ROWS. */
       const firstRow = Math.min(Math.max(0, Math.floor(scrollY / rh)), ROWS.length - 1);
       const rowsOnScreen = Math.max(1, Math.floor(tlscroll.clientHeight / rh));
       const lastRow = Math.min(firstRow + rowsOnScreen, ROWS.length);
@@ -2726,9 +2736,9 @@
         seg(ins.ex_cycle, ins.ex_cycle + 1, fuColor(ins), H_EXEC, execLabel(ins));
       }
       if (ins.co_cycle != null) seg(ins.co_cycle, ins.co_cycle + 1, sc(COL.cm), 1.0, 'co');
-      /* Three cases: (a) id_cycle == is_cycle, the common CVA6 case, one merged
+      /* Two cases: (a) id_cycle == is_cycle, the common CVA6 case, one merged
        * cell. (b) is_cycle > id_cycle after an operand wait, separate cells
-       * with an "is buf" gap. (c) is_cycle missing on very old traces. */
+       * with an "is buf" gap. */
       const haveID = ins.id_cycle != null;
       const haveIS = ins.is_cycle != null;
       if (haveID && haveIS && ins.is_cycle === ins.id_cycle) {
@@ -2741,14 +2751,9 @@
           seg(ins.id_cycle + 1, ins.is_cycle, sc(COL.exbuf), 0.65, 'is buf');
         seg(ins.is_cycle, ins.is_cycle + 1, sc(COL.dec_is_split || COL.dec), 0.65, 'is');
         /* is buf between is_cycle and ex_cycle is unusual (scoreboard issued
-         * but the FU was busy). Keep the legacy gap fill for it. */
+         * but the FU was busy). Keep the gap fill for it. */
         if (ins.ex_cycle != null && ins.ex_cycle > ins.is_cycle + 1)
           seg(ins.is_cycle + 1, ins.ex_cycle, sc(COL.exbuf), H_EXEC, 'is buf');
-      } else if (haveID) {
-        /* (c) fallback. ID only. */
-        seg(ins.id_cycle, ins.id_cycle + 1, sc(COL.dec), 0.65, 'id');
-        if (ins.ex_cycle != null && ins.ex_cycle > ins.id_cycle + 1)
-          seg(ins.id_cycle + 1, ins.ex_cycle, sc(COL.exbuf), H_EXEC, 'is buf');
       }
       {
         const idk = idBufKind(ins);
@@ -3270,16 +3275,12 @@
         if (lastIf2 != null && r.fe_cycle != null && r.fe_cycle > lastIf2 + 1) present.add('febuf');
         if (r.fe_cycle != null) present.add('fe');
         if (r.fe_cycle != null && r.id_cycle != null && r.id_cycle > r.fe_cycle + 1) present.add('idbuf');
-        /* merged when id_cycle == is_cycle, split when id_cycle < is_cycle,
-         * and id alone when is_cycle is missing (older trace). */
+        /* merged when id_cycle == is_cycle, split when id_cycle < is_cycle. */
         if (r.id_cycle != null && r.is_cycle != null && r.is_cycle === r.id_cycle) {
           present.add('id_is_merged');
         } else if (r.id_cycle != null && r.is_cycle != null && r.is_cycle > r.id_cycle) {
           present.add('id'); present.add('is');
           if (r.is_cycle > r.id_cycle + 1) present.add('isbuf');
-        } else if (r.id_cycle != null) {
-          present.add('id');
-          if (r.ex_cycle != null && r.ex_cycle > r.id_cycle + 1) present.add('isbuf');
         }
         if (r.ex_cycle != null) {
           if (r.fu === 'LOAD' || r.fu === 'STORE') present.add('mem');
@@ -3439,10 +3440,6 @@
         }
         if (ins.is_cycle != null && ins.ex_cycle != null && ins.ex_cycle > ins.is_cycle + 1) {
           addRange(dataStall, ins.is_cycle + 1, ins.ex_cycle);
-        } else if (ins.is_cycle == null && ins.id_cycle != null && ins.ex_cycle != null
-          && ins.ex_cycle > ins.id_cycle + 1) {
-          /* Fallback for old records without is_cycle. */
-          addRange(dataStall, ins.id_cycle + 1, ins.ex_cycle);
         }
         /* A missed load's wait counts as DataMemStall only when an in-window
          * instruction consumes its result, matching MinorFlow, where a lone
@@ -3513,8 +3510,8 @@
        * to [cMin, cMax], the same signals the RTL performance counters
        * (mhpmevent 16/17) report. The window figure therefore covers all cache
        * activity in those cycles, including recordless page-table-walk
-       * traffic, not only the listed instructions. Older JSONs without these
-       * arrays fall back to per-record counts. */
+       * traffic, not only the listed instructions. Traces where those signals
+       * were not dumped (empty arrays) fall back to per-record counts. */
       let ic;
       let icEventsInRange = 0;   // total accesses, derived from cache FSM when available
       /* Record-attributed icache misses, keyed by fetch cycle so instructions
@@ -3556,8 +3553,8 @@
         for (const c of IC_MISS_CYCLES) if (fullWindow || (c >= cMin && c <= cMax)) m++;
         ic = m;
       } else if (IC_EVENTS.length) {
-        /* Older tracer: the delivery-based count undercounts squashed
-         * wrong-path fills. Regenerate for the exact hardware counter. */
+        /* No miss_o pulse list in this trace: the delivery-based count
+         * undercounts squashed wrong-path fills. */
         ic = icDeliv;
       } else {
         /* No event array: the record-attributed count is the best available.
@@ -3567,8 +3564,8 @@
       /* Non-prefetch allocs in the window, which the cache reports as read
        * misses. Being record-independent this includes page-table-walk, accel
        * and cache-maintenance misses that have no record. The per-adapter
-       * split shows in the tooltip and config panel. Older JSONs fall back to
-       * the per-record dc_primary_miss count. */
+       * split shows in the tooltip and config panel. Traces without the
+       * alloc-event array fall back to the per-record dc_primary_miss count. */
       let dcLd = 0, dcSt = 0, dcOther = 0;
       if (DC_ALLOCS.length) {
         for (const ev of DC_ALLOCS) {
@@ -3965,8 +3962,8 @@
         /* The ICache reads the full line from SRAM (ICACHE_LINE_WIDTH) and
          * selects FETCH_WIDTH bits at the requested word offset (32 in default
          * CVA6, 64 with SuperscalarEn). The row appears whenever FETCH_WIDTH is
-         * known. The line width is appended only if the metadata has it, as
-         * some older JSONs omitted the cache geometry. */
+         * known. The line width is appended only when the metadata carries the
+         * cache geometry. */
         const fwRow = [];
         const fw = cp.FETCH_WIDTH, lw = cp.ICACHE_LINE_WIDTH, ipf = cp.INSTR_PER_FETCH;
         if (fw != null) {
@@ -3994,8 +3991,8 @@
           IC_MISS_CYCLES.length
             ? 'Hardware L1 ICache miss count, from the icache miss_o pulses the RTL perf counter counts (perf_counters.sv event 1), the same figure the status bar shows. This includes wrong-path fetches squashed before delivery, so it can exceed the miss figure in the cache events row above, which counts only delivered fetches.'
             : (hasIcEvents
-              ? 'Missing fetch events, the same figure the status bar shows for ICache misses. Counted once per cache access regardless of how many instructions were fetched from the same line. This JSON predates the miss_o pulse count, so wrong-path fetches squashed before delivery are not counted. Regenerate with the current tracer to match the RTL counter.'
-              : 'ICache misses in the loaded trace, recomputed from the per-record miss flags (this JSON has no event array), the same figure the status bar shows. For an exact event-based count, regenerate the JSON with the current tracer.')]);
+              ? 'Missing fetch events, the same figure the status bar shows for ICache misses. Counted once per cache access regardless of how many instructions were fetched from the same line. This trace has no miss_o pulse count, so wrong-path fetches squashed before delivery are not counted.'
+              : 'ICache misses in the loaded trace, recomputed from the per-record miss flags (this trace has no event array), the same figure the status bar shows.')]);
         icRows.push(['wraps_line records',
           `${wl.toLocaleString()} (${wlMiss.toLocaleString()} with hi miss)`,
           'Instructions whose bytes wrap a cache delivery boundary and trigger a second fetch (the hi line).']);
@@ -4674,10 +4671,6 @@
         if (c === ins.is_cycle) push('Issue (split)');
         if (ins.ex_cycle != null && ins.ex_cycle > ins.is_cycle + 1
           && c >= ins.is_cycle + 1 && c < ins.ex_cycle) push('Issue buffer');
-      } else if (haveID) {
-        if (c === ins.id_cycle) push('Decode (split)');
-        if (ins.ex_cycle != null && ins.ex_cycle > ins.id_cycle + 1
-          && c >= ins.id_cycle + 1 && c < ins.ex_cycle) push('Issue buffer');
       }
       /* Execute base, plus the LSU / DCache strips drawn on top of it. */
       const exEnd = (ins.ex_cycle != null && ins.wb_cycle != null && ins.wb_cycle >= ins.ex_cycle)
@@ -4788,9 +4781,8 @@
       html += `<tr><td>IF1 req</td><td>${cyc(r.if1_lo)}</td></tr>`;
       html += `<tr><td>IF2 resp</td><td>${cyc(r.if2_lo)}${icHit}</td></tr>`;
       if (r.wraps_line) {
-        /* From ic_miss_hi when the tracer provides it. Older traces fall back
-         * to the gap heuristic, since a 4+ cycle stall is almost always a miss
-         * when hits take one cycle. */
+        /* From ic_miss_hi when set, otherwise the gap heuristic, since a 4+
+         * cycle stall is almost always a miss when hits take one cycle. */
         const hiMiss = (r.ic_miss_hi != null) ? (r.ic_miss_hi === true)
           : ((r.if1_hi != null && r.if2_hi != null) ? (r.if2_hi - r.if1_hi - 1) >= 4 : false);
         const icHitHi = r.if2_hi != null ? (hiMiss

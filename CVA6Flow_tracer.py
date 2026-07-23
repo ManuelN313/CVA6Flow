@@ -704,7 +704,7 @@ class ICacheTimeline:
     """Walks the VCD's I$ signal stream in lockstep with the main tracer
     and emits one ICacheEvent per successful (non-killed) data delivery.
 
-    fe1 attribution rule (v0.3):
+    fe1 attribution rule:
 
       A NEW I$ ACCESS starts at the cycle when EITHER:
         (a) vaddr_o transitions to a different value (consecutive
@@ -856,8 +856,7 @@ def match_records_to_events(records, events):
                 rec.if1_hi = best_hi.fe1_cycle
                 rec.if2_hi = best_hi.fe2_cycle
                 # Authoritative hi-miss from the icache FSM (state_q==MISS at
-                # the fe2 cycle), replacing an if2_hi-if1_hi>1 heuristic that
-                # over-counted on cache-port-busy stalls.
+                # the fe2 cycle).
                 rec.ic_miss_hi = best_hi.ic_miss
                 n_wraps_with_hi += 1
 
@@ -930,10 +929,9 @@ def match_records_to_events(records, events):
             #   - lo-word == prev's hi-word -> shared with prev's hi fetch
             #   - otherwise -> new fetch one cycle after prev's last fetch
             # fe_cycle is the upper ceiling (pipeline depth must fit before it).
-            # Anchoring at fe_cycle-depth (the OLD fallback, used only without
-            # prev context) is wrong when a later record stalls in ID/IS: it
-            # invents a fictitious FE gap for an instr that actually fetched on
-            # schedule and just waited in instr_queue.
+            # Anchoring at fe_cycle-depth is wrong when a later record stalls in
+            # ID/IS: it invents a fictitious FE gap for an instr that actually
+            # fetched on schedule and just waited in instr_queue.
             depth = 3 if rec.wraps_line else 2
             seq_if1 = None
             if (prev_rec_with_if1 is not None
@@ -1117,11 +1115,11 @@ def tag_branch_bubbles(records):
             kind = "mispred"
         else:
             kind = "flush_other"
-            # Refinement A (dual-commit CSR partner). A CSR flush takes effect
-            # one cycle after commit. An unrelated op dual-committed the same
-            # cycle can look like the "last non-flushed before the bubble" when
-            # the CSR is the real cause. If the prior record committed the same
-            # cycle and is fu='CSR', prefer it as the causer.
+            # Dual-commit CSR partner. A CSR flush takes effect one cycle after
+            # commit. An unrelated op dual-committed the same cycle can look
+            # like the "last non-flushed before the bubble" when the CSR is the
+            # real cause. If the prior record committed the same cycle and is
+            # fu='CSR', prefer it as the causer.
             if i > 0:
                 prev = ordered[i - 1]
                 if (not prev.flushed
@@ -1130,22 +1128,6 @@ def tag_branch_bubbles(records):
                         and prev.co_cycle == causer.co_cycle
                         and prev.fu == "CSR"):
                     causer = prev
-            # Refinement B (self-flushed CSR). A CSR triggering flush_csr_i
-            # also asserts flush_ex_o, which re-flushes the CSR itself
-            # (flushed=True, wb_cycle set, co_cycle=None). It is the real
-            # cause, not the innocent non-flushed predecessor. Signature:
-            # fu='CSR' AND wb_cycle set AND flushed, inside the flushed run.
-            # Take the first such and shrink bubble_size by 1 (the CSR did
-            # real work, not wasted bandwidth).
-            if causer.fu != "CSR":
-                for k in range(i + 1, j):
-                    cand = ordered[k]
-                    if (cand.fu == "CSR"
-                            and cand.wb_cycle is not None
-                            and cand.flushed):
-                        causer = cand
-                        bubble_size = (j - i - 1) - 1
-                        break
 
         causer.bubble_kind = kind
         causer.bubble_caused_cycles = bubble_size
@@ -1372,9 +1354,8 @@ class PipelineTracker:
         FW=64). Equivalent to serving_unaligned_o asserting at the realigner's
         output cycle.
 
-        The predicate must stay FETCH_BYTES-aware: an earlier hard-coded
-        (pc & 7) == 6 covered only FW=64 and silently missed exactly half the
-        wraps on FW=32 traces (records/run ratio ~0.5 instead of >=1.0).
+        The predicate must stay FETCH_BYTES-aware so it covers both FW=32
+        (offset 2) and FW=64 (offset 6) fetch blocks.
         """
         if is_compressed or pc is None:
             return False
@@ -1457,11 +1438,9 @@ class PipelineTracker:
         """
         if not self.fetched:
             return
-        # Diagnostics. These gate on fwd_rsX_used=True. An earlier coarse
-        # version counted stale idx_hzd_rsX values unrelated to real forwards
-        # and overstated the match rate. All-zero here means via=wb=0 is the
-        # true answer for this build, and nonzero means the via writer has a
-        # bug.
+        # Diagnostics. These gate on fwd_rsX_used=True. All-zero here means
+        # via=wb=0 is the true answer for this build, and nonzero means the
+        # via writer has a bug.
         self._diag_n_issue_cycles += 1
         wb_tids_set = {tid for _port, tid in (wb_view or [])}
         if wb_view:
@@ -1897,8 +1876,7 @@ class PipelineTracker:
         # ev_cycles / rfsm_sorted are sorted key arrays so each record can
         # bisect straight to the first event in its window. Events are already
         # in cycle order (on_dcache_sample runs once per ascending rising
-        # edge). The old per-record linear scan was records x events, the slow
-        # tail that made a big VCD look like it hung after parsing.
+        # edge), so no re-sort is needed.
         evlog = self._dc_events
         n_events = len(evlog)
         ev_cycles = [ev["cycle"] for ev in evlog]
@@ -2723,7 +2701,7 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
     FIF = single_id.get("flush_ctrl_if")
     FID = single_id.get("flush_ctrl_id")
     FEX = single_id.get("flush_ctrl_ex")
-    # Phase 4a v0.3: gate on_decode by !flush_unissued_instr_i.
+    # flush_unissued_instr_i gates the decode+issue handshake and the fetch.
     FUI = single_id.get("issue_stage_i.i_scoreboard.flush_unissued_instr_i")
     if FUI is None:
         stagelog("WARNING: flush_unissued_instr_i not resolved. Phantom-decode "
@@ -3049,21 +3027,15 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
         if IC_MISS_O is not None and state.get(IC_MISS_O, "0") == "1":
             icache_miss_cycles.append(cycle)
 
-        # 1. Flush detection on rising edges of flush_ctrl_*.
-        flush_if_now = state.get(FIF, "0") if FIF else "0"
-        flush_id_now = state.get(FID, "0") if FID else "0"
-        flush_ex_now = state.get(FEX, "0") if FEX else "0"
-        # EX cascade covers ID + IF, so check it first.
-        if flush_ex_now == "1" and prev_flush_ex == "0":
-            tracker.on_flush_ex(cycle)
-        elif flush_id_now == "1" and prev_flush_id == "0":
-            tracker.on_flush_id(cycle)
-        elif flush_if_now == "1" and prev_flush_if == "0":
-            tracker.on_flush_if(cycle)
-        prev_flush_if, prev_flush_id, prev_flush_ex = (
-            flush_if_now, flush_id_now, flush_ex_now)
-
-        # 2. Commit (release scoreboard slots before issue can claim them).
+        # 1. Commit, BEFORE flush detection.
+        #
+        # Ordering is architectural, not cosmetic. A serialising instruction
+        # (CSR, AMO, fence) commits and raises flush_ctrl_ex in the same
+        # cycle: the flush it causes is meant for the instructions BEHIND it,
+        # never for itself. Once commit_ack_o is asserted the instruction has
+        # architecturally retired and must not be flushed, so commit runs
+        # first. Commit also precedes issue, releasing scoreboard slots before
+        # issue can claim them.
         if CA is not None:
             ca_bus = state.get(CA, "0")
             for port in range(n_commit_ports):
@@ -3088,6 +3060,20 @@ def stream_and_extract(f, matches, args, n_wb_ports, n_commit_ports):
                             tracker.on_commit(cycle, port, tid,
                                               mq_fu, mq_rs1, mq_rs2, mq_rd,
                                               mq_bp_cf)
+
+        # 2. Flush detection on rising edges of flush_ctrl_*.
+        flush_if_now = state.get(FIF, "0") if FIF else "0"
+        flush_id_now = state.get(FID, "0") if FID else "0"
+        flush_ex_now = state.get(FEX, "0") if FEX else "0"
+        # EX cascade covers ID + IF, so check it first.
+        if flush_ex_now == "1" and prev_flush_ex == "0":
+            tracker.on_flush_ex(cycle)
+        elif flush_id_now == "1" and prev_flush_id == "0":
+            tracker.on_flush_id(cycle)
+        elif flush_if_now == "1" and prev_flush_if == "0":
+            tracker.on_flush_if(cycle)
+        prev_flush_if, prev_flush_id, prev_flush_ex = (
+            flush_if_now, flush_id_now, flush_ex_now)
 
         # 3. Writeback.
         if WTV is not None:
@@ -3725,12 +3711,62 @@ def parse_disasm_list(path):
     return disasm
 
 
+_AMO_FUNCT5 = {
+    0x00: "amoadd", 0x01: "amoswap", 0x02: "lr", 0x03: "sc",
+    0x04: "amoxor", 0x08: "amoor", 0x0C: "amoand",
+    0x10: "amomin", 0x14: "amomax", 0x18: "amominu", 0x1C: "amomaxu",
+}
+_AMO_WIDTH = {0b010: ".w", 0b011: ".d"}
+_FENCE_FUNCT3 = {0b000: "fence", 0b001: "fence.i"}
+
+
+def fallback_disasm(instr_word, is_compressed=False):
+    """Minimal decoder for instructions the objdump listing did not cover.
+
+    Only the A extension and FENCE are named. Everything else returns a
+    `.4byte`/`.2byte` literal so the field is never left null, which keeps the
+    viewer's mnemonic column and any downstream mnemonic grouping usable.
+
+    Covers PCs missing from the listing (wrong -march when the .dump was
+    produced, a stale listing, bootrom code outside the ELF). Returns None
+    when there is no word to decode.
+    """
+    if instr_word is None:
+        return None
+    try:
+        word = int(instr_word, 16)
+    except (TypeError, ValueError):
+        return None
+    if is_compressed or (word & 0x3) != 0x3:
+        return f".2byte 0x{word & 0xFFFF:04x}"
+    opcode = word & 0x7F
+    if opcode == 0x2F:
+        name = _AMO_FUNCT5.get((word >> 27) & 0x1F)
+        width = _AMO_WIDTH.get((word >> 12) & 0x7)
+        if name is not None and width is not None:
+            aq = (word >> 26) & 0x1
+            rl = (word >> 25) & 0x1
+            suffix = (".aq" if aq else "") + (".rl" if rl else "")
+            rd = (word >> 7) & 0x1F
+            rs1 = (word >> 15) & 0x1F
+            rs2 = (word >> 20) & 0x1F
+            if name == "lr":
+                return f"{name}{width}{suffix} x{rd},(x{rs1})"
+            return f"{name}{width}{suffix} x{rd},x{rs2},(x{rs1})"
+    elif opcode == 0x0F:
+        name = _FENCE_FUNCT3.get((word >> 12) & 0x7)
+        if name is not None:
+            return name
+    return f".4byte 0x{word:08x}"
+
+
 def apply_disasm(records, disasm_map):
     """Annotate each record's `disasm` field by PC lookup.
 
     Returns (n_annotated, n_no_pc, n_unmapped), where n_unmapped covers PCs
     outside the listing, e.g. bootrom code at 0x10000 not part of the user
-    ELF."""
+    ELF. Unmapped records fall back to fallback_disasm() so the field is
+    never null; they are still counted as unmapped."""
     n_annotated = 0
     n_no_pc = 0
     n_unmapped = 0
@@ -3746,6 +3782,9 @@ def apply_disasm(records, disasm_map):
         text = disasm_map.get(pc_int)
         if text is None:
             n_unmapped += 1
+            text = fallback_disasm(rec.instr_word, rec.is_compressed)
+            if text is not None:
+                rec.disasm = text
         else:
             rec.disasm = text
             n_annotated += 1
@@ -4207,14 +4246,19 @@ def main():
 
     # Annotate with disassembly after the walk, so we cover exactly the
     # records that will be serialized (committed + flushed).
+    #
+    # apply_disasm() is called even when no listing was given, because its
+    # fallback decoder still names the A extension and FENCE and emits a
+    # .2byte/.4byte literal for everything else, so disasm is never left null.
     if args.disasm_list:
         disasm_path = Path(args.disasm_list)
         if not disasm_path.exists():
             print(f"WARNING: --disasm-list {disasm_path} not found. "
-                  "skipping disasm annotation.", file=sys.stderr)
-            stats["disasm_annotated"] = 0
-            stats["disasm_unmapped"] = 0
-            stats["disasm_no_pc"] = 0
+                  "falling back to built-in decoding.", file=sys.stderr)
+            n_ann, n_no_pc, n_unmapped = apply_disasm(tracker.completed, {})
+            stats["disasm_annotated"] = n_ann
+            stats["disasm_unmapped"] = n_unmapped
+            stats["disasm_no_pc"] = n_no_pc
             stats["disasm_list_path"] = None
         else:
             disasm_map = parse_disasm_list(disasm_path)
@@ -4229,9 +4273,12 @@ def main():
             stats["disasm_no_pc"] = n_no_pc
             stats["disasm_list_path"] = str(disasm_path)
     else:
-        stats["disasm_annotated"] = 0
-        stats["disasm_unmapped"] = 0
-        stats["disasm_no_pc"] = 0
+        n_ann, n_no_pc, n_unmapped = apply_disasm(tracker.completed, {})
+        stagelog(f"Phase 5: no disasm listing given. Built-in fallback named "
+                 f"{n_unmapped - n_no_pc:,} records by opcode.", file=sys.stderr)
+        stats["disasm_annotated"] = n_ann
+        stats["disasm_unmapped"] = n_unmapped
+        stats["disasm_no_pc"] = n_no_pc
         stats["disasm_list_path"] = None
 
     if len(tracker.completed) == 0:
